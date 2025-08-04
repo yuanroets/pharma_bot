@@ -1,0 +1,29 @@
+# VS Code files that should not be tracked
+.vscode/browse.vc.db*
+.vscode/ipch/
+.vscode/.browse.VC.db*
+
+# Build directories
+build/
+install/
+log/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+
+# ROS specific
+devel/
+.catkin_workspace
+
+# Temporary files
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
