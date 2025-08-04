@@ -226,26 +226,29 @@ class MotorDriver(Node):
         # Clamp speed to valid range
         speed = max(-self.max_pwm, min(self.max_pwm, speed))
         
-        # Convert 12-bit PWM (0-4095) to 16-bit (0-65535) for PCA9685
-        pwm_16bit = int(abs(speed) * 16)  # 4095 * 16 = 65520 (close to 65535)
-        
-        if motor == 0:  # Left motor
-            if speed >= 0:
-                GPIO.output(self.dir1_pin, GPIO.HIGH)
-                self.pca.channels[self.pwm_channel1].duty_cycle = pwm_16bit
-            else:
-                GPIO.output(self.dir1_pin, GPIO.LOW)
-                self.pca.channels[self.pwm_channel1].duty_cycle = pwm_16bit
-        else:  # Right motor
-            if speed >= 0:
-                GPIO.output(self.dir2_pin, GPIO.HIGH)
-                self.pca.channels[self.pwm_channel2].duty_cycle = pwm_16bit
-            else:
-                GPIO.output(self.dir2_pin, GPIO.LOW)
-                self.pca.channels[self.pwm_channel2].duty_cycle = pwm_16bit
-        
-        if self.debug_mode:
-            self.get_logger().debug(f"Motor {motor}: speed={speed}, PWM={pwm_16bit}")
+        try:
+            # Convert to 16-bit duty cycle like the working driver
+            if motor == 0:  # Left motor
+                if speed >= 0:
+                    GPIO.output(self.dir1_pin, GPIO.HIGH)
+                    self.pca.channels[self.pwm_channel1].duty_cycle = int((abs(speed) / self.max_pwm) * 0xFFFF)
+                else:
+                    GPIO.output(self.dir1_pin, GPIO.LOW)
+                    self.pca.channels[self.pwm_channel1].duty_cycle = int((abs(speed) / self.max_pwm) * 0xFFFF)
+            else:  # Right motor
+                if speed >= 0:
+                    GPIO.output(self.dir2_pin, GPIO.HIGH)
+                    self.pca.channels[self.pwm_channel2].duty_cycle = int((abs(speed) / self.max_pwm) * 0xFFFF)
+                else:
+                    GPIO.output(self.dir2_pin, GPIO.LOW)
+                    self.pca.channels[self.pwm_channel2].duty_cycle = int((abs(speed) / self.max_pwm) * 0xFFFF)
+            
+            if self.debug_mode:
+                pwm_value = int((abs(speed) / self.max_pwm) * 0xFFFF)
+                self.get_logger().info(f"Motor {motor}: speed={speed}, PWM={pwm_value}")
+                
+        except Exception as e:
+            self.get_logger().error(f"PWM command failed: {str(e)}")
     
     def stop_motors(self):
         """Stop both motors"""
@@ -366,12 +369,16 @@ class MotorDriver(Node):
             
             self.get_logger().info(f"Manual PWM command: L={left_pwm}, R={right_pwm}")
             
-            # Disable PID control
-            self.moving = False
-            
-            # Set motors directly
-            self.set_motor_speed(0, left_pwm)
-            self.set_motor_speed(1, right_pwm)
+            try:
+                # Disable PID control
+                self.moving = False
+                
+                # Set motors directly
+                self.set_motor_speed(0, left_pwm)
+                self.set_motor_speed(1, right_pwm)
+                
+            except Exception as e:
+                self.get_logger().error(f"PWM callback failed: {str(e)}")
     
     def publish_encoder_data(self):
         """Publish encoder counts for monitoring"""
