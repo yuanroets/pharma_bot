@@ -50,7 +50,7 @@ class MotorEncoderTest(Node):
         try:
             i2c = busio.I2C(board.SCL, board.SDA)
             self.pca = PCA9685(i2c, address=self.i2c_address)
-            self.pca.frequency = 1000  # 1kHz PWM
+            self.pca.frequency = 100  # 100Hz PWM, suitable for most motor drivers
             self.pwm_channel1 = 0  # PWM0 for Motor 1 (Left)
             self.pwm_channel2 = 1  # PWM1 for Motor 2 (Right)
             self.get_logger().info(f"PCA9685 initialized at address 0x{self.i2c_address:02X}")
@@ -172,20 +172,23 @@ class MotorEncoderTest(Node):
         # Clamp PWM to valid range
         pwm_value = max(-4095, min(4095, pwm_value))
         
+        # Convert 12-bit PWM (0-4095) to 16-bit (0-65535) for PCA9685
+        pwm_16bit = int(abs(pwm_value) * 16)  # 4095 * 16 = 65520
+        
         if motor == 0:  # Left motor
             if pwm_value >= 0:
                 GPIO.output(self.dir1_pin, GPIO.HIGH)
-                self.pca.channels[self.pwm_channel1].duty_cycle = int(abs(pwm_value))
+                self.pca.channels[self.pwm_channel1].duty_cycle = pwm_16bit
             else:
                 GPIO.output(self.dir1_pin, GPIO.LOW)
-                self.pca.channels[self.pwm_channel1].duty_cycle = int(abs(pwm_value))
+                self.pca.channels[self.pwm_channel1].duty_cycle = pwm_16bit
         else:  # Right motor
             if pwm_value >= 0:
                 GPIO.output(self.dir2_pin, GPIO.HIGH)
-                self.pca.channels[self.pwm_channel2].duty_cycle = int(abs(pwm_value))
+                self.pca.channels[self.pwm_channel2].duty_cycle = pwm_16bit
             else:
                 GPIO.output(self.dir2_pin, GPIO.LOW)
-                self.pca.channels[self.pwm_channel2].duty_cycle = int(abs(pwm_value))
+                self.pca.channels[self.pwm_channel2].duty_cycle = pwm_16bit
     
     def stop_motors(self):
         """Stop both motors"""

@@ -56,7 +56,7 @@ class MotorDriver(Node):
         self.declare_parameter('debug_mode', True)
         
         # Get parameters
-        self.i2c_address = self.get_parameter('i2c_address').value
+        self.i2c_address = int(self.get_parameter('i2c_address').value)
         self.max_pwm = self.get_parameter('max_pwm').value
         self.encoder_cpr = self.get_parameter('encoder_cpr').value
         self.loop_rate = self.get_parameter('loop_rate').value
@@ -68,7 +68,7 @@ class MotorDriver(Node):
         try:
             i2c = busio.I2C(board.SCL, board.SDA)
             self.pca = PCA9685(i2c, address=self.i2c_address)
-            self.pca.frequency = 1000  # 1kHz PWM, suitable for TB6612FNG
+            self.pca.frequency = 100  # 100Hz PWM, suitable for most motor drivers
             self.pwm_channel1 = 0  # PWM0 for Motor 1
             self.pwm_channel2 = 1  # PWM1 for Motor 2
             self.get_logger().info(f"PCA9685 initialized at address 0x{self.i2c_address:02X}")
@@ -122,7 +122,7 @@ class MotorDriver(Node):
         
         # For manual PWM testing
         self.pwm_sub = self.create_subscription(
-            Float64MultiArray, 'motor_pwm', self.pwm_callback, 10)
+            Float64MultiArray, 'test_motor_pwm', self.pwm_callback, 10)
         
         # Publishers for debugging and monitoring
         self.encoder_pub = self.create_publisher(
@@ -226,23 +226,26 @@ class MotorDriver(Node):
         # Clamp speed to valid range
         speed = max(-self.max_pwm, min(self.max_pwm, speed))
         
+        # Convert 12-bit PWM (0-4095) to 16-bit (0-65535) for PCA9685
+        pwm_16bit = int(abs(speed) * 16)  # 4095 * 16 = 65520 (close to 65535)
+        
         if motor == 0:  # Left motor
             if speed >= 0:
                 GPIO.output(self.dir1_pin, GPIO.HIGH)
-                self.pca.channels[self.pwm_channel1].duty_cycle = int(abs(speed))
+                self.pca.channels[self.pwm_channel1].duty_cycle = pwm_16bit
             else:
                 GPIO.output(self.dir1_pin, GPIO.LOW)
-                self.pca.channels[self.pwm_channel1].duty_cycle = int(abs(speed))
+                self.pca.channels[self.pwm_channel1].duty_cycle = pwm_16bit
         else:  # Right motor
             if speed >= 0:
                 GPIO.output(self.dir2_pin, GPIO.HIGH)
-                self.pca.channels[self.pwm_channel2].duty_cycle = int(abs(speed))
+                self.pca.channels[self.pwm_channel2].duty_cycle = pwm_16bit
             else:
                 GPIO.output(self.dir2_pin, GPIO.LOW)
-                self.pca.channels[self.pwm_channel2].duty_cycle = int(abs(speed))
+                self.pca.channels[self.pwm_channel2].duty_cycle = pwm_16bit
         
         if self.debug_mode:
-            self.get_logger().debug(f"Motor {motor}: speed={speed}")
+            self.get_logger().debug(f"Motor {motor}: speed={speed}, PWM={pwm_16bit}")
     
     def stop_motors(self):
         """Stop both motors"""
