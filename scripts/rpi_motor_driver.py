@@ -110,6 +110,9 @@ class MotorDriver(Node):
         # Motion state
         self.moving = False
         
+        # Interrupt status
+        self.interrupts_enabled = False
+        
         # Thread safety
         self.mutex = Lock()
         
@@ -150,22 +153,65 @@ class MotorDriver(Node):
     def _setup_encoder_interrupts(self):
         """Setup GPIO interrupts for encoders"""
         try:
+            # Clean up any existing event detection first
+            try:
+                GPIO.remove_event_detect(self.enc1_a_pin)
+                GPIO.remove_event_detect(self.enc1_b_pin)
+                GPIO.remove_event_detect(self.enc2_a_pin)
+                GPIO.remove_event_detect(self.enc2_b_pin)
+            except:
+                pass  # Ignore errors if no events were set
+            
+            # Add a small delay to ensure cleanup is complete
+            time.sleep(0.1)
+            
             # Setup interrupts for both edges of both encoder channels
-            GPIO.add_event_detect(self.enc1_a_pin, GPIO.BOTH, callback=self._left_encoder_callback)
-            GPIO.add_event_detect(self.enc1_b_pin, GPIO.BOTH, callback=self._left_encoder_callback)
-            GPIO.add_event_detect(self.enc2_a_pin, GPIO.BOTH, callback=self._right_encoder_callback)
-            GPIO.add_event_detect(self.enc2_b_pin, GPIO.BOTH, callback=self._right_encoder_callback)
+            # Use bouncetime to prevent spurious interrupts
+            GPIO.add_event_detect(self.enc1_a_pin, GPIO.BOTH, 
+                                callback=self._left_encoder_callback, bouncetime=1)
+            GPIO.add_event_detect(self.enc1_b_pin, GPIO.BOTH, 
+                                callback=self._left_encoder_callback, bouncetime=1)
+            GPIO.add_event_detect(self.enc2_a_pin, GPIO.BOTH, 
+                                callback=self._right_encoder_callback, bouncetime=1)
+            GPIO.add_event_detect(self.enc2_b_pin, GPIO.BOTH, 
+                                callback=self._right_encoder_callback, bouncetime=1)
+            
+            # Initialize the state values
+            self.last_left_state = (GPIO.input(self.enc1_a_pin) << 1) | GPIO.input(self.enc1_b_pin)
+            self.last_right_state = (GPIO.input(self.enc2_a_pin) << 1) | GPIO.input(self.enc2_b_pin)
+            
             self.get_logger().info("Encoder interrupts setup successfully")
+            self.interrupts_enabled = True
         except Exception as e:
             self.get_logger().error(f"Failed to setup encoder interrupts: {e}")
+            self.get_logger().warn("Falling back to polling mode for encoders")
+            self.interrupts_enabled = False
+            # Setup a timer to poll encoders instead
+            self.encoder_poll_timer = self.create_timer(0.01, self._poll_encoders)  # 100Hz polling
     
-    def _left_encoder_callback(self, channel):
-        """Left encoder interrupt callback - quadrature decoding"""
-        a_state = GPIO.input(self.enc1_a_pin)
-        b_state = GPIO.input(self.enc1_b_pin)
-        
-        current_state = (a_state << 1) | b_state
-        
+    def _poll_encoders(self):
+        """Poll encoders when interrupts are not available"""
+        if not self.interrupts_enabled:
+            # Left encoder
+            a_state = GPIO.input(self.enc1_a_pin)
+            b_state = GPIO.input(self.enc1_b_pin)
+            current_left_state = (a_state << 1) | b_state
+            
+            if current_left_state != self.last_left_state:
+                self._process_left_encoder_change(current_left_state)
+                self.last_left_state = current_left_state
+            
+            # Right encoder
+            a_state = GPIO.input(self.enc2_a_pin)
+            b_state = GPIO.input(self.enc2_b_pin)
+            current_right_state = (a_state << 1) | b_state
+            
+            if current_right_state != self.last_right_state:
+                self._process_right_encoder_change(current_right_state)
+                self.last_right_state = current_right_state
+    
+    def _process_left_encoder_change(self, current_state):
+        """Process left encoder state change (used by both interrupt and polling)"""
         # Simple quadrature decoding
         if self.last_left_state == 0b00:
             if current_state == 0b01:
@@ -187,16 +233,9 @@ class MotorDriver(Node):
                 self.left_encoder_count += 1
             elif current_state == 0b11:
                 self.left_encoder_count -= 1
-        
-        self.last_left_state = current_state
     
-    def _right_encoder_callback(self, channel):
-        """Right encoder interrupt callback - quadrature decoding"""
-        a_state = GPIO.input(self.enc2_a_pin)
-        b_state = GPIO.input(self.enc2_b_pin)
-        
-        current_state = (a_state << 1) | b_state
-        
+    def _process_right_encoder_change(self, current_state):
+        """Process right encoder state change (used by both interrupt and polling)"""
         # Simple quadrature decoding
         if self.last_right_state == 0b00:
             if current_state == 0b01:
@@ -218,7 +257,23 @@ class MotorDriver(Node):
                 self.right_encoder_count += 1
             elif current_state == 0b11:
                 self.right_encoder_count -= 1
+    
+    def _left_encoder_callback(self, channel):
+        """Left encoder interrupt callback - quadrature decoding"""
+        a_state = GPIO.input(self.enc1_a_pin)
+        b_state = GPIO.input(self.enc1_b_pin)
+        current_state = (a_state << 1) | b_state
         
+        self._process_left_encoder_change(current_state)
+        self.last_left_state = current_state
+    
+    def _right_encoder_callback(self, channel):
+        """Right encoder interrupt callback - quadrature decoding"""
+        a_state = GPIO.input(self.enc2_a_pin)
+        b_state = GPIO.input(self.enc2_b_pin)
+        current_state = (a_state << 1) | b_state
+        
+        self._process_right_encoder_change(current_state)
         self.last_right_state = current_state
     
     def set_motor_speed(self, motor, speed):
@@ -397,6 +452,17 @@ class MotorDriver(Node):
         """Cleanup GPIO and PCA9685"""
         try:
             self.stop_motors()
+            
+            # Clean up GPIO interrupts
+            if self.interrupts_enabled:
+                try:
+                    GPIO.remove_event_detect(self.enc1_a_pin)
+                    GPIO.remove_event_detect(self.enc1_b_pin)
+                    GPIO.remove_event_detect(self.enc2_a_pin)
+                    GPIO.remove_event_detect(self.enc2_b_pin)
+                except:
+                    pass
+            
             self.pca.deinit()
             GPIO.cleanup()
             self.get_logger().info("Cleanup completed")
