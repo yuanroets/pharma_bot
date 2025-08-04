@@ -9,19 +9,18 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-# Install Python modules
-ament_python_install_package(${PROJECT_NAME})
-
 # Install Python executables
 install(PROGRAMS
-  scripts/motor_control_node.py
-  scripts/encoder_node.py
+  scripts/interactive_motor_test.py
+  scripts/motor_encoder_test.py
+  scripts/rpi_motor_driver.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
