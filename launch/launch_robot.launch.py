@@ -85,6 +85,13 @@ def generate_launch_description():
         )
     )
 
+    # OKDO LiDAR
+    okdo_lidar = IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([os.path.join(
+                    get_package_share_directory(package_name),'launch','okdo_lidar.launch.py'
+                )])
+    )
+
 
     # Code for delaying a node (I haven't tested how effective it is)
     # 
@@ -109,6 +116,7 @@ def generate_launch_description():
         rsp,
         # joystick,
         twist_mux,
+        okdo_lidar,
         delayed_controller_manager,
         delayed_diff_drive_spawner,
         delayed_joint_broad_spawner

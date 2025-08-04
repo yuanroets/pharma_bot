@@ -4,14 +4,25 @@
     <xacro:unless value="$(arg sim_mode)">
         <ros2_control name="RealRobot" type="system">
             <hardware>
-                <plugin>diffdrive_arduino/DiffDriveArduinoHardware</plugin>
+                <plugin>pharma_bot/RpiHardwareInterface</plugin>
                 <param name="left_wheel_name">left_wheel_joint</param>
                 <param name="right_wheel_name">right_wheel_joint</param>
                 <param name="loop_rate">30</param>
-                <param name="device">/dev/ttyUSB0</param>
-                <param name="baud_rate">57600</param>
-                <param name="timeout_ms">1000</param>
                 <param name="enc_counts_per_rev">3436</param>
+                <param name="wheel_separation">0.297</param>
+                <param name="wheel_radius">0.033</param>
+                <!-- GPIO pin configuration -->
+                <param name="dir1_pin">5</param>
+                <param name="dir2_pin">6</param>
+                <param name="enc1_a_pin">23</param>
+                <param name="enc1_b_pin">24</param>
+                <param name="enc2_a_pin">27</param>
+                <param name="enc2_b_pin">22</param>
+                <!-- PCA9685 configuration -->
+                <param name="i2c_address">0x40</param>
+                <param name="pwm_frequency">1000</param>
+                <param name="pwm_channel1">0</param>
+                <param name="pwm_channel2">1</param>
             </hardware>
             <joint name="left_wheel_joint">
                 <command_interface name="velocity">

@@ -1,0 +1,33 @@
+# RPI Motor Driver Configuration
+motor_driver:
+  ros__parameters:
+    # Hardware configuration
+    i2c_address: 0x40
+    max_pwm: 4095
+    
+    # Encoder configuration  
+    encoder_cpr: 1440  # This will need to be determined experimentally
+    
+    # Control loop configuration
+    loop_rate: 20  # Hz
+    
+    # Robot physical parameters
+    wheel_separation: 0.17  # meters
+    wheel_radius: 0.033     # meters
+    
+    # PID parameters (from Arduino code)
+    kp: 20
+    kd: 12
+    ki: 0
+    ko: 50
+    
+    # Debug and monitoring
+    debug_mode: true
+    
+    # GPIO pin assignments (for reference)
+    # dir1_pin: 5    # Left motor direction
+    # dir2_pin: 6    # Right motor direction
+    # enc1_a_pin: 23 # Left encoder A
+    # enc1_b_pin: 24 # Left encoder B
+    # enc2_a_pin: 27 # Right encoder A
+    # enc2_b_pin: 22 # Right encoder B

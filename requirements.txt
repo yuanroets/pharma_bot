@@ -1,0 +1,11 @@
+# Python requirements for Pharma Bot motor control
+# Install with: pip3 install -r requirements.txt
+
+# Adafruit CircuitPython libraries for PCA9685
+adafruit-circuitpython-pca9685>=3.4.0
+
+# Note: RPi.GPIO is typically installed system-wide on Raspberry Pi OS
+# If needed, install with: sudo apt-get install python3-rpi.gpio
+
+# Additional system packages needed:
+# sudo apt-get install python3-smbus i2c-tools
