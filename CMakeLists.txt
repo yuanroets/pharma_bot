@@ -24,4 +24,24 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# Install launch files
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch/
+)
+
+# Install config files
+install(DIRECTORY config/
+  DESTINATION share/${PROJECT_NAME}/config/
+)
+
+# Install description files
+install(DIRECTORY description/
+  DESTINATION share/${PROJECT_NAME}/description/
+)
+
+# Install world files
+install(DIRECTORY worlds/
+  DESTINATION share/${PROJECT_NAME}/worlds/
+)
+
 ament_package()
