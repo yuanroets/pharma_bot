@@ -9,19 +9,18 @@ slam_toolbox:
     ceres_dogleg_type: TRADITIONAL_DOGLEG
     ceres_loss_function: None
 
-    # ROS Parameters
+    # ROS Parameters - Updated for LD19 LiDAR and custom robot setup
     odom_frame: odom
     map_frame: map
-    base_frame: base_footprint
-    scan_topic: /scan
-    mode: localization
+    base_frame: base_footprint        # Robot's base frame for TF
+    scan_topic: /ldlidar_node/scan    # Updated to match LD19 LiDAR topic
+    mode: mapping                     # Changed from localization to mapping for SLAM
 
-    # if you'd like to immediately start continuing a map at a given pose
-    # or at the dock, but they are mutually exclusive, if pose is given
-    # will use pose
-    map_file_name: /home/dev/dev_ws/my_map_serial
-    # map_start_pose: [0.0, 0.0, 0.0]
-    map_start_at_dock: true
+    # Map saving configuration - Updated path for your system
+    # This determines where maps will be saved when you call save_map service
+    map_file_name: /home/ubuntu/dev_ws/my_robot_map
+    # map_start_pose: [0.0, 0.0, 0.0]  # Starting pose (x, y, theta)
+    map_start_at_dock: false          # Start mapping immediately, not from dock
 
     debug_logging: false
     throttle_scans: 1
