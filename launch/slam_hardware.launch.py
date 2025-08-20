@@ -113,18 +113,49 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Static Transform Publisher - Defines the relationship between base_link and LiDAR
-    # This tells ROS where the LiDAR is mounted relative to the robot center
-    # Adjust these values based on your actual LiDAR mounting position
-    base_to_lidar_transform = Node(
+    # Static Transform Publishers - Define coordinate frame relationships
+    
+    # 1. Base footprint to base link transform
+    # base_footprint is on the ground, base_link is at robot center
+    base_footprint_to_base_link = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='base_to_lidar_publisher',
+        name='base_footprint_to_base_link',
         arguments=[
-            '0.0', '0.0', '0.1',    # x, y, z translation (LiDAR position in meters)
+            '0.0', '0.0', '0.05',   # x, y, z (lift base_link 5cm above ground)
+            '0.0', '0.0', '0.0',    # roll, pitch, yaw
+            'base_footprint',       # Parent frame (on ground)
+            'base_link'             # Child frame (robot center)
+        ],
+        output='screen'
+    )
+    
+    # 2. Base link to LiDAR transform
+    # This tells ROS where the LiDAR is mounted relative to the robot center
+    # Adjust these values based on your actual LiDAR mounting position
+    base_link_to_lidar_transform = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='base_link_to_lidar_publisher',
+        arguments=[
+            '0.0', '0.0', '0.15',   # x, y, z translation (LiDAR 15cm above base_link)
             '0.0', '0.0', '0.0',    # roll, pitch, yaw rotation (LiDAR orientation)
             'base_link',            # Parent frame (robot center)
             'ldlidar_link'          # Child frame (LiDAR frame from your driver)
+        ],
+        output='screen'
+    )
+    
+    # 3. Alternative: If you need base_link to ldlidar_base transform
+    base_link_to_ldlidar_base = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='base_link_to_ldlidar_base',
+        arguments=[
+            '0.0', '0.0', '0.15',   # Same position as LiDAR
+            '0.0', '0.0', '0.0',    # No rotation
+            'base_link',            # Parent frame
+            'ldlidar_base'          # Child frame (if this is what your driver publishes)
         ],
         output='screen'
     )
@@ -140,6 +171,8 @@ def generate_launch_description():
     # Add all nodes
     ld.add_action(start_async_slam_toolbox_node)
     ld.add_action(rviz_node)
-    ld.add_action(base_to_lidar_transform)
+    ld.add_action(base_footprint_to_base_link)
+    ld.add_action(base_link_to_lidar_transform)
+    ld.add_action(base_link_to_ldlidar_base)
 
     return ld
