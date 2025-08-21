@@ -1,0 +1,120 @@
+RVIZ SETUP FROM SCRATCH - REAL ROBOT CONFIGURATION
+===================================================
+
+Follow these steps to set up RViz properly for your real robot with LiDAR visualization.
+
+PREREQUISITES:
+=============
+- Robot hardware must be running (motor driver, teleop bridge, LiDAR driver)
+- Dev machine connected to same network as Pi
+- RViz launched with: ros2 run rviz2 rviz2
+
+STEP-BY-STEP RVIZ CONFIGURATION:
+================================
+
+Step 1: Set Fixed Frame
+-----------------------
+1. In RViz, look at the left panel "Displays"
+2. At the top, find "Global Options" -> "Fixed Frame"
+3. Change it from "map" to "base_link"
+   (If base_link doesn't work, try "odom" or "ldlidar_link")
+
+Step 2: Add Grid Display
+------------------------
+1. Click "Add" button at bottom of Displays panel
+2. Go to "rviz_default_plugins" -> "Grid"
+3. Click "OK"
+4. Grid should appear in the 3D view
+
+Step 3: Add TF (Transform) Display
+----------------------------------
+1. Click "Add" button again
+2. Go to "rviz_default_plugins" -> "TF"
+3. Click "OK"
+4. You should see coordinate frame arrows
+
+Step 4: Add Robot Model Display
+-------------------------------
+1. Click "Add" button
+2. Go to "rviz_default_plugins" -> "RobotModel"
+3. Click "OK"
+4. Set "Description Topic" to "/robot_description"
+5. You should see your robot model (if robot_state_publisher is running)
+
+Step 5: Add LaserScan Display (MOST IMPORTANT)
+----------------------------------------------
+1. Click "Add" button
+2. Go to "rviz_default_plugins" -> "LaserScan"
+3. Click "OK"
+4. In the LaserScan properties, set:
+   - Topic: "/scan" (first try this)
+   - If no data appears, try: "/ldlidar_node/scan"
+   - Size (Pixels): 3
+   - Style: "Points" or "Flat Squares"
+   - Color: 255; 0; 0 (red)
+
+Step 6: Check Topic Availability
+--------------------------------
+Before configuring LaserScan, check what topics are available:
+
+On Pi or Dev machine:
+ros2 topic list | grep scan
+
+You should see either:
+- /scan
+- /ldlidar_node/scan
+
+Use whichever one appears in the LaserScan topic field.
+
+Step 7: Adjust View
+-------------------
+1. Use mouse to rotate/zoom the 3D view
+2. Set a good viewing angle to see the robot and LiDAR data
+3. Try "Orbit" view type for best control
+
+Step 8: Save Configuration
+--------------------------
+1. Go to File -> "Save Config As..."
+2. Navigate to: /home/ubuntu/dev_ws/src/pharma_bot/config/
+3. Save as: "real_robot_custom.rviz"
+
+TROUBLESHOOTING RVIZ SETUP:
+===========================
+
+If Fixed Frame shows red error:
+- Try different frames: base_link, odom, ldlidar_link, ldlidar_base
+- Check: ros2 topic echo /tf_static
+
+If no robot model appears:
+- Check if robot_state_publisher is running
+- Try running: ros2 launch pharma_bot rsp.launch.py use_sim_time:=false
+
+If no LiDAR data appears:
+- Check: ros2 topic echo /scan (or /ldlidar_node/scan)
+- Verify LiDAR lifecycle is activated
+- Try changing LaserScan topic in RViz
+
+If LiDAR shows but looks weird:
+- Adjust "Decay Time" (try 10.0 seconds)
+- Change "Style" to "Points" or "Spheres"
+- Increase "Size (Pixels)" to 5
+
+EXPECTED RESULTS:
+================
+You should see:
+- Grid in the center
+- Robot model (if available)
+- Red dots/points showing LiDAR scan data
+- Coordinate frame arrows
+- Real-time updates as robot moves
+
+TESTING THE SETUP:
+==================
+1. Drive robot with teleop_twist_keyboard
+2. LiDAR dots should update in real-time
+3. Robot model should move (if visible)
+4. Point LiDAR at walls/objects to see scan patterns
+
+FINAL LAUNCH COMMAND (after saving config):
+===========================================
+ros2 run rviz2 rviz2 -d src/pharma_bot/config/real_robot_custom.rviz
