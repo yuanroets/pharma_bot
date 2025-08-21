@@ -76,11 +76,27 @@ Terminal 4 (Dev) - Static Transform (connects LiDAR to robot):
 ------------------------------------------------------------
 cd /home/ubuntu/dev_ws
 source install/setup.bash
-ros2 run tf2_ros static_transform_publisher 0.0 0.0 0.15 0.0 0.0 0.0 base_link ldlidar_base
+ros2 run tf2_ros static_transform_publisher 0.0 0.0 0.15 0.0 0.0 0.0 base_link ldlidar_link
 
 This tells ROS where the LiDAR is mounted on the robot.
 
-Terminal 5 (Dev) - Joint State Publisher (makes wheels visible):
+Terminal 5 (Dev) - Static Transform (odom to base_link):
+-------------------------------------------------------
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 run tf2_ros static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 odom base_link
+
+This provides the robot's position in the odometry frame.
+
+Terminal 6 (Dev) - Static Transform (map to odom):
+--------------------------------------------------
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 run tf2_ros static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 map odom
+
+This creates a fixed map reference frame.
+
+Terminal 7 (Dev) - Joint State Publisher (makes wheels visible):
 ---------------------------------------------------------------
 cd /home/ubuntu/dev_ws
 source install/setup.bash
@@ -190,7 +206,7 @@ map (fixed reference)
      └── base_link (robot center)
          ├── left_wheel_link
          ├── right_wheel_link  
-         └── ldlidar_base (LiDAR sensor)
+         └── ldlidar_link (LiDAR sensor)
 ```
 
 **In RViz, set Fixed Frame to "map"** for the best visualization experience:
@@ -228,7 +244,7 @@ ON DEV MACHINE:
 COORDINATE FRAME EXPLANATION:
 ============================
 - base_link: Robot's main coordinate frame (center of robot)
-- ldlidar_base/ldlidar_link: LiDAR sensor coordinate frame
+- ldlidar_link: LiDAR sensor coordinate frame (actual frame published by LD19)
 - Static Transform: Tells ROS where LiDAR is mounted relative to robot
 - Without static transform: Robot and LiDAR are separate, unconnected
 - With static transform: Complete system with LiDAR properly positioned on robot

@@ -64,13 +64,13 @@ def generate_launch_description():
         }]
     )
 
-    # Static Transform: base_link -> ldlidar_base
+    # Static Transform: base_link -> ldlidar_link
     # This links the robot model to the LiDAR coordinate frame
     static_tf_base_to_lidar = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_lidar',
-        arguments=['0', '0', '0.2', '0', '0', '0', 'base_link', 'ldlidar_base'],
+        arguments=['0', '0', '0.2', '0', '0', '0', 'base_link', 'ldlidar_link'],
         output='screen'
     )
 
@@ -81,6 +81,16 @@ def generate_launch_description():
         executable='static_transform_publisher', 
         name='static_tf_map_to_odom',
         arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+        output='screen'
+    )
+
+    # Static Transform: odom -> base_link (robot position in odometry frame)
+    # For a real robot without odometry, we use a static transform
+    static_tf_odom_to_base = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_odom_to_base', 
+        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link'],
         output='screen'
     )
 
@@ -125,6 +135,7 @@ def generate_launch_description():
     ld.add_action(joint_state_publisher)
     ld.add_action(static_tf_base_to_lidar)
     ld.add_action(static_tf_map_to_odom)
+    ld.add_action(static_tf_odom_to_base)
     ld.add_action(rviz2)
     
     # Add delayed teleop
