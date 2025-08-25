@@ -1,0 +1,82 @@
+SIMULATION LAUNCH WITH TELEOP INSTRUCTIONS
+==========================================
+
+This document explains how to launch the pharma_bot simulation in Gazebo with keyboard teleop control and RViz visualization.
+
+PREREQUISITES:
+- Make sure the workspace is built: `colcon build --packages-select pharma_bot`
+- Source the workspace in each terminal: `source install/setup.bash`
+
+STEP-BY-STEP LAUNCH PROCESS:
+============================
+
+Terminal 1 - Launch Main Simulation:
+------------------------------------
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 launch pharma_bot launch_sim.launch.py
+
+This will start:
+- Gazebo simulation with the robot
+- Robot state publisher
+- ROS2 control system with delayed controller spawning
+- Joystick nodes (though we'll use keyboard instead)
+- ROS-Gazebo bridge for topics like /scan, /odom, /camera, etc.
+
+Terminal 2 - Start Twist Mux (Command Multiplexer):
+--------------------------------------------------
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 run twist_mux twist_mux --ros-args -p use_stamped:=false -p topics.teleop.topic:=cmd_vel_teleop -p topics.teleop.timeout:=0.5 -p topics.teleop.priority:=200 --remap cmd_vel_out:=/diff_cont/cmd_vel_unstamped
+
+This allows multiple command sources and routes keyboard commands to the robot controller.
+
+Terminal 3 - Keyboard Teleop:
+-----------------------------
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/diff_cont/cmd_vel_unstamped
+
+Follow the on-screen instructions for keyboard control:
+- Use WASD or arrow keys to move
+- Use q/z to increase/decrease linear speed
+- Use e/c to increase/decrease angular speed
+- Use spacebar or k to stop
+
+Terminal 4 - RViz Visualization:
+-------------------------------
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 run rviz2 rviz2 -d src/pharma_bot/config/drive_bot.rviz
+
+This will show:
+- Robot model
+- Transform frames (TF)
+- Lidar scan data
+- Grid for reference
+
+TOPIC FLOW:
+===========
+keyboard -> /cmd_vel_teleop -> twist_mux -> /diff_cont/cmd_vel_unstamped -> diff_drive_controller -> robot movement
+
+TROUBLESHOOTING:
+===============
+- If controllers fail to spawn, make sure the simulation is fully loaded before the spawners run
+- If keyboard doesn't work, check that twist_mux is running and receiving commands
+- If no lidar data in RViz, make sure the /scan topic is being published
+- Use `ros2 topic list` to verify all topics are available
+- Use `ros2 topic echo /topic_name` to check data flow
+
+USEFUL COMMANDS:
+===============
+- Check running nodes: `ros2 node list`
+- Check available topics: `ros2 topic list`
+- Monitor topic data: `ros2 topic echo /scan` (for lidar data)
+- Check topic info: `ros2 topic info /diff_cont/cmd_vel_unstamped`
+
+EXPECTED RESULTS:
+================
+- Robot moves in Gazebo when using keyboard controls
+- Lidar scan data visible in RViz as red dots/lines
+- Robot model visible and updating in RViz
+- Smooth movement without controller errors

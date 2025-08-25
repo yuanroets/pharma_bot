@@ -12,15 +12,17 @@ slam_toolbox:
     # ROS Parameters - Updated for LD19 LiDAR and custom robot setup
     odom_frame: odom
     map_frame: map
-    base_frame: base_footprint        # Robot's base frame for TF
-    scan_topic: /ldlidar_node/scan    # Updated to match LD19 LiDAR topic
-    mode: mapping                     # Changed from localization to mapping for SLAM
+    base_frame: base_link             # Robot's base frame for TF (matches simulation)
+    # scan_topic: /ldlidar_node/scan    # For real robot, use LD19 LiDAR topic
+    scan_topic: /scan               # For simulation, use default scan topic
+    mode: localization                     # Changed from localization to mapping for SLAM
 
     # Map saving configuration - Updated path for your system
     # This determines where maps will be saved when you call save_map service
-    map_file_name: /home/ubuntu/dev_ws/my_robot_map
+    map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/gazebo_map_serial
     # map_start_pose: [0.0, 0.0, 0.0]  # Starting pose (x, y, theta)
-    map_start_at_dock: false          # Start mapping immediately, not from dock
+    map_start_at_dock: true          # false for mapping, true for localization from dock
+                                    # Set to true for localization mode to start at known dock position
 
     debug_logging: false
     throttle_scans: 1

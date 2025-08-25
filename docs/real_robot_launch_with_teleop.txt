@@ -1,0 +1,119 @@
+REAL ROBOT LAUNCH WITH TELEOP AND LIDAR INSTRUCTIONS
+=====================================================
+
+This document explains how to launch the real pharma_bot robot with keyboard teleop control and lidar visualization.
+
+HARDWARE SETUP OVERVIEW:
+========================
+- Pi: Runs robot hardware (motors + lidar), robot_state_publisher, ROS2 control
+- Dev Machine: Runs keyboard teleop, RViz visualization, twist_mux
+
+STEP-BY-STEP LAUNCH PROCESS:
+============================
+
+ON THE RASPBERRY PI:
+--------------------
+
+Terminal 1 (Pi) - Launch Robot Hardware:
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 launch pharma_bot launch_robot.launch.py
+
+This will start on the Pi:
+- Robot state publisher (with real hardware mode)
+- ROS2 control system for real robot
+- Controller manager and diff_drive controller
+- OKDO LiDAR driver and scanner
+- Twist mux for command routing
+
+OR ALTERNATIVE (Pi) - Use the Complete Hardware Launch:
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 launch pharma_bot pi_hardware.launch.py
+
+This is more comprehensive and includes:
+- Motor driver (Arduino communication)
+- Teleop bridge (cmd_vel to motor commands)
+- LD19 LiDAR with lifecycle management
+- Automatic LiDAR activation sequence
+
+ON THE DEV MACHINE:
+------------------
+
+Terminal 1 (Dev) - Keyboard Teleop:
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/cmd_vel_teleop
+
+This publishes keyboard commands to /cmd_vel_teleop which twist_mux will route to the robot.
+
+Terminal 2 (Dev) - RViz Visualization:
+cd /home/ubuntu/dev_ws
+source install/setup.bash
+ros2 run rviz2 rviz2 -d src/pharma_bot/config/drive_bot.rviz
+
+This will show:
+- Real robot model and transforms
+- Live lidar scan data from hardware
+- Robot movement in real-time
+
+NETWORK CONFIGURATION:
+=====================
+Make sure both machines can communicate:
+
+On Pi (~/.bashrc):
+export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=0
+
+On Dev Machine (~/.bashrc):  
+export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=0
+
+TOPIC FLOW (Real Robot):
+=======================
+Dev Machine: keyboard -> /cmd_vel_teleop -> (network) -> Pi: twist_mux -> /diff_cont/cmd_vel_unstamped -> diff_drive_controller -> motors
+Pi: lidar -> /scan -> (network) -> Dev Machine: RViz
+
+HARDWARE CONNECTIONS:
+====================
+- Arduino connected to Pi via USB (/dev/ttyUSB0)
+- LiDAR connected to Pi GPIO UART (/dev/ttyAMA0) OR USB
+- Power supply for motors and LiDAR
+- Pi connected to dev machine via network (WiFi/Ethernet)
+
+TROUBLESHOOTING:
+===============
+- If no robot movement: Check Arduino connection and motor driver node
+- If no lidar data: Check LiDAR power and serial connection
+- If network issues: Check ROS_DOMAIN_ID and firewall settings
+- If controllers fail: Check that hardware interface is properly configured
+- Check topic flow: `ros2 topic list` should show topics from both machines
+
+USEFUL DIAGNOSTIC COMMANDS:
+==========================
+On Pi:
+- Check hardware topics: `ros2 topic list | grep -E "(scan|odom|cmd_vel)"`
+- Monitor motor commands: `ros2 topic echo /motor_command`
+- Check controller status: `ros2 control list_controllers`
+
+On Dev Machine:
+- Check network topics: `ros2 topic list`
+- Monitor lidar: `ros2 topic echo /scan`
+- Check teleop commands: `ros2 topic echo /cmd_vel_teleop`
+
+EXPECTED RESULTS:
+================
+- Robot moves in real world when using keyboard controls
+- Live lidar scan data visible in RViz showing actual environment
+- Robot model in RViz matches real robot orientation
+- Smooth movement without hardware errors
+- Real-time laser scan updates as robot moves around
+
+ALTERNATIVE SIMPLIFIED APPROACH:
+===============================
+If twist_mux causes issues, you can directly connect teleop to the controller:
+
+On Dev Machine (Direct Control):
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args --remap cmd_vel:=/diff_cont/cmd_vel_unstamped
+
+This bypasses twist_mux and sends commands directly to the diff_drive controller.
