@@ -47,8 +47,8 @@ def generate_launch_description():
     default_world = os.path.join(
         get_package_share_directory(package_name),
         'worlds',
-        'empty.world'  # Back to working world
-        # 'gazebo_cor.world.sdf' # SDF file has XML errors
+        'corridor.world'  # Fixed corridor world (removed malformed robot include)
+        # 'obstacles.world'  # Alternative working world
         )    
     
     world = LaunchConfiguration('world')
@@ -69,7 +69,7 @@ def generate_launch_description():
     # Run the spawner node from the ros_gz_sim package. The entity name doesn't really matter if you only have a single robot.
     spawn_entity = Node(package='ros_gz_sim', executable='create',
                         arguments=['-topic', 'robot_description',
-                                   '-name', 'my_bot',
+                                   '-name', 'pharma_bot',
                                    '-z', '0.1'],
                         output='screen')
 
