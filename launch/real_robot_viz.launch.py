@@ -76,16 +76,19 @@ def generate_launch_description():
 
     # Static Transform: map -> odom (for fixed reference frame)
     # This creates a map frame that stays fixed while robot moves
-    static_tf_map_to_odom = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher', 
-        name='static_tf_map_to_odom',
-        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
-        output='screen'
-    )
+    # NOTE: When using SLAM, this will be published by slam_toolbox instead
+    # Uncomment only if NOT using SLAM localization
+    # static_tf_map_to_odom = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher', 
+    #     name='static_tf_map_to_odom',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+    #     output='screen'
+    # )
 
     # Static Transform: odom -> base_link (robot position in odometry frame)
-    # For a real robot without odometry, we use a static transform
+    # NOTE: For robots with odometry (motor encoders), this should be published by the motor driver
+    # Use static transform only for testing without proper odometry
     static_tf_odom_to_base = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -134,7 +137,7 @@ def generate_launch_description():
     ld.add_action(robot_state_publisher)
     ld.add_action(joint_state_publisher)
     ld.add_action(static_tf_base_to_lidar)
-    ld.add_action(static_tf_map_to_odom)
+    # ld.add_action(static_tf_map_to_odom)  # Commented out - handled by SLAM
     ld.add_action(static_tf_odom_to_base)
     ld.add_action(rviz2)
     

@@ -43,6 +43,15 @@ def generate_launch_description():
         prefix='xterm -e'  # Run in separate terminal window
     )
 
+    # Nav2 cmd_vel relay - connects Nav2 output to robot controller
+    relay_node = Node(
+        package='topic_tools',
+        executable='relay',
+        name='cmd_vel_relay',
+        arguments=['cmd_vel', 'diff_cont/cmd_vel_unstamped'],
+        parameters=[{'use_sim_time': True}]
+    )
+
 
     default_world = os.path.join(
         get_package_share_directory(package_name),
@@ -129,6 +138,7 @@ def generate_launch_description():
         rsp,
         joystick,
         teleop_keyboard,
+        relay_node,
         world_arg,
         gazebo,
         spawn_entity,

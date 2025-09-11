@@ -83,6 +83,16 @@ def generate_launch_description():
         }]
     )
 
+    # Nav2 cmd_vel relay - connects Nav2 output to robot controller
+    # This bridges Nav2's /cmd_vel to the teleop_bridge's /cmd_vel input
+    nav_cmd_relay = Node(
+        package='topic_tools',
+        executable='relay',
+        name='cmd_vel_relay',
+        arguments=['cmd_vel', 'cmd_vel'],  # Nav2 -> teleop_bridge
+        parameters=[{'use_sim_time': False}]  # Real robot doesn't use sim time
+    )
+
     # LiDAR Launch - Starts the LD19 LiDAR driver
     lidar_launch = ExecuteProcess(
         cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
@@ -135,6 +145,7 @@ def generate_launch_description():
     # Add nodes
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
+    ld.add_action(nav_cmd_relay)  # Add relay node for Nav2 integration
     ld.add_action(lidar_launch)
     
     # Add lifecycle management
