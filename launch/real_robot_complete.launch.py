@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-Real Robot Hardware Launch File - FOR RASPBERRY PI
-==================================================
+Real Robot Complete Launch File - WORKING VERSION
+=================================================
 
-This launch file starts ALL hardware components on the Pi:
-- Motor driver (communicates with Arduino via USB)
-- Teleop bridge (converts cmd_vel to motor commands)
-- LiDAR driver and activation
+This launch file creates a real robot system that MATCHES the simulation:
+- Uses /diff_cont/cmd_vel_unstamped topic (like simulation)  
+- Uses your working serial_motor_demo hardware
+- Adds LiDAR on /dev/ttyAMA0
+- Bridges the gap with motor_controller_bridge
 
 Usage on Pi:
-    ros2 launch pharma_bot real_robot_pi.launch.py
+    ros2 launch pharma_bot real_robot_complete.launch.py
 
-This replaces 4 separate terminal commands with just 1!
+Topic flow: teleop -> /diff_cont/cmd_vel_unstamped -> bridge -> /cmd_vel -> serial_motor_demo -> motors
 """
 
 import os
@@ -55,7 +56,7 @@ def generate_launch_description():
         description='Arduino loop rate in Hz'
     )
 
-    # Motor Driver Node - Communicates with Arduino
+    # 1. Motor Driver Node - Communicates with Arduino
     motor_driver_node = Node(
         package='serial_motor_demo',
         executable='driver',
@@ -69,7 +70,7 @@ def generate_launch_description():
         }]
     )
 
-    # Teleop Bridge Node - Converts cmd_vel to motor commands
+    # 2. Teleop Bridge Node - Converts cmd_vel to motor commands
     teleop_bridge_node = Node(
         package='serial_motor_demo',
         executable='teleop_bridge',
@@ -83,23 +84,23 @@ def generate_launch_description():
         }]
     )
 
-    # Nav2 cmd_vel relay - COMMENTED OUT FOR NOW (will add back when testing Nav2)
-    # nav_cmd_relay = Node(
-    #     package='topic_tools',
-    #     executable='relay', 
-    #     name='cmd_vel_relay',
-    #     arguments=['cmd_vel_nav2', 'cmd_vel'],
-    #     parameters=[{'use_sim_time': False}]
-    # )
+    # 3. Motor Controller Bridge - Connects simulation-style topics to real hardware
+    motor_controller_bridge = Node(
+        package='pharma_bot',
+        executable='motor_controller_bridge.py',
+        name='motor_controller_bridge',
+        output='screen',
+        parameters=[{'use_sim_time': False}]
+    )
 
-    # LiDAR Launch - Starts the LD19 LiDAR driver
+    # 4. LiDAR Launch - Starts the LD19 LiDAR driver
     lidar_launch = ExecuteProcess(
         cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
         output='screen',
         name='lidar_launch'
     )
 
-    # LiDAR Lifecycle Commands - Configure and activate LiDAR
+    # 5. LiDAR Lifecycle Commands - Configure and activate LiDAR
     lidar_configure = ExecuteProcess(
         cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'configure'],
         output='screen',
@@ -110,6 +111,15 @@ def generate_launch_description():
         cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'activate'],
         output='screen', 
         name='lidar_activate'
+    )
+
+    # 6. Nav2 cmd_vel relay - connects Nav2 output to robot controller
+    nav_cmd_relay = Node(
+        package='topic_tools',
+        executable='relay',
+        name='cmd_vel_relay',
+        arguments=['cmd_vel', 'diff_cont/cmd_vel_unstamped'],  # Nav2 -> simulation-style topic
+        parameters=[{'use_sim_time': False}]
     )
 
     # Event Handlers for Sequenced Startup
@@ -141,13 +151,14 @@ def generate_launch_description():
     ld.add_action(declare_encoder_cpr)
     ld.add_action(declare_loop_rate)
     
-    # Add nodes
+    # Add motor system
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
-    # ld.add_action(nav_cmd_relay)  # Commented out for basic motor testing
-    ld.add_action(lidar_launch)
+    ld.add_action(motor_controller_bridge)  # THE KEY BRIDGE!
+    ld.add_action(nav_cmd_relay)
     
-    # Add lifecycle management
+    # Add LiDAR system
+    ld.add_action(lidar_launch)
     ld.add_action(configure_after_launch)
     ld.add_action(activate_after_configure)
 

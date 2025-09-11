@@ -106,7 +106,8 @@ def generate_launch_description():
         prefix='gnome-terminal --',  # Opens in new terminal window
         parameters=[{
             'use_sim_time': use_sim_time,
-        }]
+        }],
+        remappings=[('/cmd_vel', '/cmd_vel')]  # Direct to serial_motor_demo teleop_bridge
     )
 
     # RViz2 - 3D visualization with robot model and LiDAR data
