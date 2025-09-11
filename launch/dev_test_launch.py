@@ -62,17 +62,10 @@ def generate_launch_description():
         }]
     )
 
-    # CRITICAL TRANSFORMS for LiDAR integration
-    # Static Transform: base_link -> ldlidar_link
-    # This links the robot model to the LiDAR coordinate frame (matches LiDAR config)
-    static_tf_base_to_lidar = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_tf_base_to_lidar',
-        arguments=['0', '0', '0.2', '0', '0', '0', 'base_link', 'ldlidar_link'],
-        output='screen'
-    )
-
+    # CRITICAL TRANSFORMS for coordinate frame chain (WITHOUT SLAM)
+    # Transform chain: odom → base_link → ldlidar_link
+    # NOTE: Use 'odom' as Fixed Frame in RViz (not 'map' since we're not using SLAM yet)
+    
     # Static Transform: odom -> base_link (robot position in odometry frame)
     # NOTE: This is temporary - in future, motor driver should publish odometry
     static_tf_odom_to_base = Node(
@@ -80,6 +73,16 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='static_tf_odom_to_base', 
         arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link'],
+        output='screen'
+    )
+    
+    # Static Transform: base_link -> ldlidar_link
+    # This links the robot model to the LiDAR coordinate frame (matches LiDAR config)
+    static_tf_base_to_lidar = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_base_to_lidar',
+        arguments=['0', '0', '0.2', '0', '0', '0', 'base_link', 'ldlidar_link'],
         output='screen'
     )
 
@@ -123,8 +126,8 @@ def generate_launch_description():
     # Add core visualization components (start immediately)
     ld.add_action(robot_state_publisher)
     ld.add_action(joint_state_publisher)
-    ld.add_action(static_tf_base_to_lidar)  # CRITICAL for LiDAR
-    ld.add_action(static_tf_odom_to_base)   # CRITICAL for transforms
+    ld.add_action(static_tf_odom_to_base)   # CRITICAL: odom → base_link
+    ld.add_action(static_tf_base_to_lidar)  # CRITICAL: base_link → LiDAR
     ld.add_action(rviz2)
     
     # Add delayed teleop
