@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 """
-Pi Test Launch File - MINIMAL MOTOR CONTROL ONLY
-================================================
+Pi Test Launch File - MOTOR CONTROL + LIDAR
+===========================================
 
-This launch file starts ONLY the motor control components on the Pi:
+This launch file starts motor control + LiDAR components on the Pi:
 - Motor driver (communicates with Arduino via USB)
 - Teleop bridge (converts cmd_vel to motor commands)
+- LiDAR driver with lifecycle management (/dev/ttyAMA0)
 
 Usage on Pi:
     ros2 launch pharma_bot pi_test_launch.py
 
-This is the minimal working setup for keyboard motor control testing.
+This is the working setup for keyboard motor control + LiDAR testing.
 """
 
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction
+from launch.event_handlers import OnProcessStart
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -80,6 +82,46 @@ def generate_launch_description():
         }]
     )
 
+    # LiDAR Launch - Starts the LD19 LiDAR driver
+    lidar_launch = ExecuteProcess(
+        cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
+        output='screen',
+        name='lidar_launch'
+    )
+
+    # LiDAR Lifecycle Commands - Configure and activate LiDAR
+    lidar_configure = ExecuteProcess(
+        cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'configure'],
+        output='screen',
+        name='lidar_configure'
+    )
+
+    lidar_activate = ExecuteProcess(
+        cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'activate'],
+        output='screen', 
+        name='lidar_activate'
+    )
+
+    # Event Handlers for Sequenced LiDAR Startup
+    # Configure LiDAR 3 seconds after launch starts
+    configure_after_launch = RegisterEventHandler(
+        OnProcessStart(
+            target_action=lidar_launch,
+            on_start=[
+                TimerAction(
+                    period=3.0,
+                    actions=[lidar_configure]
+                )
+            ]
+        )
+    )
+
+    # Activate LiDAR 2 seconds after configure
+    activate_after_configure = TimerAction(
+        period=5.0,  # Total 5 seconds (3 for launch + 2 for configure)
+        actions=[lidar_activate]
+    )
+
     # Build Launch Description
     ld = LaunchDescription()
 
@@ -89,8 +131,13 @@ def generate_launch_description():
     ld.add_action(declare_encoder_cpr)
     ld.add_action(declare_loop_rate)
     
-    # Add motor nodes ONLY
+    # Add motor nodes
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
+    
+    # Add LiDAR components
+    ld.add_action(lidar_launch)
+    ld.add_action(configure_after_launch)
+    ld.add_action(activate_after_configure)
 
     return ld
