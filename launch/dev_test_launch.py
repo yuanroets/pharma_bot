@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Dev Machine Test Launch File - TELEOP + BASIC VISUALIZATION
-===========================================================
+Dev Machine Test Launch File - TELEOP + SLAM VISUALIZATION
+==========================================================
 
-This launch file starts teleop + basic RViz visualization on the dev machine:
+This launch file starts teleop + SLAM mapping on the dev machine:
 - Teleop keyboard control
 - Robot state publisher (URDF)
-- LiDAR state publisher (for ldlidar_base → ldlidar_link transform)
+- SLAM Toolbox with proper topic remapping
 - Static transforms (coordinate frame linking)
-- RViz2 with robot model and LiDAR data
+- RViz2 with robot model, LiDAR data, and SLAM visualization
 
 Usage on dev machine:
     ros2 launch pharma_bot dev_test_launch.py
@@ -21,7 +21,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration, Command
-from launch_ros.actions import Node
+from launch_ros.actions import Node, LifecycleNode
 from launch_ros.parameter_descriptions import ParameterValue
 
 
@@ -101,6 +101,23 @@ def generate_launch_description():
     # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
     # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
 
+    # SLAM Toolbox Node - Maps environment using LiDAR data
+    # Uses LifecycleNode with explicit topic remapping (same approach as ldlidar vendors)
+    slam_toolbox_node = LifecycleNode(
+        package='slam_toolbox',
+        executable='async_slam_toolbox_node',
+        namespace='',
+        name='slam_toolbox',
+        output='screen',
+        parameters=[
+            '/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml',
+            {'use_sim_time': use_sim_time}
+        ],
+        remappings=[
+            ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
+        ]          
+    )
+
     # Teleop Keyboard Control - For driving the robot
     teleop_keyboard = Node(
         package='teleop_twist_keyboard',
@@ -144,6 +161,7 @@ def generate_launch_description():
     ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
     ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
     ld.add_action(static_tf_base_to_right_wheel) # Backup wheel transforms
+    ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
     ld.add_action(rviz2)
     
     # Add delayed teleop

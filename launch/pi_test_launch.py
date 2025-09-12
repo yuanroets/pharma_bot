@@ -149,7 +149,7 @@ def generate_launch_description():
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
     
-    # Add LiDAR components
+        # Add LiDAR components
     ld.add_action(lidar_launch)
     ld.add_action(delayed_lifecycle_manager)
 
