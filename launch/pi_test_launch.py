@@ -84,7 +84,7 @@ def generate_launch_description():
     # Motor to Joint State Bridge - Converts encoder data to joint states for RViz
     joint_state_bridge = Node(
         package='pharma_bot',
-        executable='motor_to_joint_state_bridge.py',
+        executable='motor_to_joint_state_bridge',
         name='motor_to_joint_state_bridge',
         output='screen',
         parameters=[{
