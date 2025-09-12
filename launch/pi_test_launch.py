@@ -15,10 +15,11 @@ This is the working setup for keyboard motor control + LiDAR testing.
 """
 
 import os
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction
 from launch.event_handlers import OnProcessStart
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
 
 
@@ -82,6 +83,35 @@ def generate_launch_description():
         }]
     )
 
+    # Robot State Publisher - Loads and publishes robot URDF
+    robot_description_file = os.path.join(
+        get_package_share_directory('pharma_bot'), 
+        'description', 
+        'robot.urdf.xacro'
+    )
+    
+    robot_state_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        name='robot_state_publisher',
+        output='screen',
+        parameters=[{
+            'robot_description': Command(['xacro ', robot_description_file]),
+            'use_sim_time': False,
+        }]
+    )
+
+    # Joint State Publisher - For static wheel positions (upgrade to joint_state_bridge later)
+    joint_state_publisher = Node(
+        package='joint_state_publisher',
+        executable='joint_state_publisher',
+        name='joint_state_publisher',
+        output='screen',
+        parameters=[{
+            'use_sim_time': False,
+        }]
+    )
+
     # LiDAR Launch - Starts the LD19 LiDAR driver
     lidar_launch = ExecuteProcess(
         cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
@@ -100,6 +130,27 @@ def generate_launch_description():
         cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'activate'],
         output='screen', 
         name='lidar_activate'
+    )
+
+    # CRITICAL TRANSFORMS for coordinate frame chain
+    # Complete chain: odom → base_link → ldlidar_base → ldlidar_link
+    
+    # Static Transform: odom -> base_link (robot position in odometry frame)
+    # NOTE: This is temporary - in future, motor driver should publish odometry
+    static_tf_odom_to_base = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_odom_to_base',
+        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
+    )
+    
+    # Static Transform: base_link -> ldlidar_base (LiDAR mounting position)
+    # Position matches simulation: x=0.122m (forward), z=0.212m (up)
+    static_tf_base_to_lidar_base = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_base_to_lidar_base',
+        arguments=['0.122', '0', '0.212', '0', '0', '0', 'base_link', 'ldlidar_base']
     )
 
     # Event Handlers for Sequenced LiDAR Startup
@@ -130,6 +181,12 @@ def generate_launch_description():
     ld.add_action(declare_baud_rate)
     ld.add_action(declare_encoder_cpr)
     ld.add_action(declare_loop_rate)
+    
+    # Add robot description and transforms (start immediately)
+    ld.add_action(robot_state_publisher)
+    ld.add_action(joint_state_publisher)
+    ld.add_action(static_tf_odom_to_base)
+    ld.add_action(static_tf_base_to_lidar_base)
     
     # Add motor nodes
     ld.add_action(motor_driver_node)

@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
 """
-Dev Machine Test Launch File - TELEOP + BASIC VISUALIZATION
-===========================================================
+Debug Test Launch File - DIAGNOSTIC LAUNCH FOR TROUBLESHOOTING
+==============================================================
 
-This launch file starts teleop + basic RViz visualization on the dev machine:
-- Teleop keyboard control
-- Robot state publisher (URDF)
-- LiDAR state publisher (for ldlidar_base → ldlidar_link transform)
-- Static transforms (coordinate frame linking)
-- RViz2 with robot model and LiDAR data
+This launch file helps debug common issues:
+- Tests robot description publishing
+- Tests transform tree
+- Tests LiDAR data flow
+- Minimal setup for easier debugging
 
-Usage on dev machine:
-    ros2 launch pharma_bot dev_test_launch.py
+Usage:
+    ros2 launch pharma_bot debug_test_launch.py
 
-Make sure to set ROS_DOMAIN_ID=30 to match the Pi.
 """
 
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
 from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
 
@@ -55,7 +53,7 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
         }]
     )
-    
+
     # Joint State Publisher - Publishes wheel joint positions
     joint_state_publisher = Node(
         package='joint_state_publisher',
@@ -67,12 +65,10 @@ def generate_launch_description():
         }]
     )
 
-    # CRITICAL TRANSFORMS for coordinate frame chain (WITHOUT SLAM)
+    # CRITICAL TRANSFORMS for coordinate frame chain
     # Complete chain: odom → base_link → ldlidar_base → ldlidar_link
-    # NOTE: Use 'odom' as Fixed Frame in RViz
     
     # Static Transform: odom -> base_link (robot position in odometry frame)
-    # NOTE: This is temporary - in future, motor driver should publish odometry
     static_tf_odom_to_base = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -81,30 +77,22 @@ def generate_launch_description():
     )
     
     # Static Transform: base_link -> ldlidar_base (LiDAR mounting position)
-    # Position matches simulation: x=0.122m (forward), z=0.212m (up)
     static_tf_base_to_lidar_base = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_lidar_base',
         arguments=['0.122', '0', '0.212', '0', '0', '0', 'base_link', 'ldlidar_base']
     )
-    
-    # NOTE: ldlidar_base -> ldlidar_link transform is provided by the LiDAR driver itself
 
-    # Teleop Keyboard Control - For driving the robot
-    teleop_keyboard = Node(
-        package='teleop_twist_keyboard',
-        executable='teleop_twist_keyboard',
-        name='teleop_twist_keyboard',
-        output='screen',
-        prefix='gnome-terminal --',  # Opens in new terminal window
-        parameters=[{
-            'use_sim_time': use_sim_time,
-        }],
-        remappings=[('/cmd_vel', '/cmd_vel')]  # Direct to serial_motor_demo teleop_bridge
+    # Static Transform: ldlidar_base -> ldlidar_link (temporary for testing)
+    static_tf_lidar_base_to_link = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_lidar_base_to_link',
+        arguments=['0', '0', '0', '0', '0', '0', 'ldlidar_base', 'ldlidar_link']
     )
 
-    # RViz2 - 3D visualization with robot model and LiDAR data
+    # RViz2 - 3D visualization with robot model
     rviz2 = Node(
         package='rviz2',
         executable='rviz2',
@@ -116,10 +104,27 @@ def generate_launch_description():
         }]
     )
 
-    # Delayed start for teleop (gives time for everything to initialize)
-    delayed_teleop = TimerAction(
-        period=3.0,
-        actions=[teleop_keyboard]
+    # TF debugging commands (delayed)
+    tf_debug_tree = TimerAction(
+        period=5.0,
+        actions=[
+            ExecuteProcess(
+                cmd=['ros2', 'run', 'tf2_tools', 'view_frames'],
+                output='screen',
+                name='tf_debug_tree'
+            )
+        ]
+    )
+
+    tf_debug_echo = TimerAction(
+        period=6.0,
+        actions=[
+            ExecuteProcess(
+                cmd=['ros2', 'topic', 'echo', '/robot_description', '--once'],
+                output='screen',
+                name='robot_description_check'
+            )
+        ]
     )
 
     # Build Launch Description  
@@ -128,14 +133,16 @@ def generate_launch_description():
     # Add arguments
     ld.add_action(declare_use_sim_time)
     
-    # Add core visualization components (start immediately)
+    # Add core components
     ld.add_action(robot_state_publisher)
     ld.add_action(joint_state_publisher)
-    ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
-    ld.add_action(static_tf_base_to_lidar_base)  # CRITICAL: base_link → ldlidar_base
+    ld.add_action(static_tf_odom_to_base)
+    ld.add_action(static_tf_base_to_lidar_base)
+    ld.add_action(static_tf_lidar_base_to_link)  # Temporary for testing
     ld.add_action(rviz2)
     
-    # Add delayed teleop
-    ld.add_action(delayed_teleop)
+    # Add debug commands
+    ld.add_action(tf_debug_tree)
+    ld.add_action(tf_debug_echo)
 
     return ld
