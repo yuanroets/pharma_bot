@@ -108,6 +108,15 @@ def generate_launch_description():
         name='lidar_launch'
     )
 
+    # Topic relay: /ldlidar_node/scan -> /scan (for standard ROS compatibility)
+    scan_relay = Node(
+        package='topic_tools',
+        executable='relay',
+        name='scan_relay',
+        arguments=['ldlidar_node/scan', 'scan'],
+        output='screen'
+    )
+
     # LiDAR Lifecycle Manager - Robust lifecycle management
     lidar_lifecycle_manager = Node(
         package='pharma_bot',
@@ -151,6 +160,7 @@ def generate_launch_description():
     
     # Add LiDAR components
     ld.add_action(lidar_launch)
+    ld.add_action(scan_relay)
     ld.add_action(delayed_lifecycle_manager)
 
     return ld
