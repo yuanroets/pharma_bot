@@ -3,12 +3,15 @@
 Pi Test Launch File - MOTOR CONTROL + LIDAR
 ===========================================
 
-This laun    # LiDAR Launch - Starts ONLY the LD19 LiDAR driver (no robot_state_publisher)
-    # Note: Using custom launch to avoid conflicting robot descriptions
-    lidar_launch = ExecuteProcess(
-        cmd=['ros2', 'launch', 'pharma_bot', 'ldlidar_node_only.launch.py'],
-        output='screen',
-        name='lidar_launch'
+This laun    # LiDAR Launch - Include with remapping to avoid robot_description conflict
+    lidar_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            get_package_share_directory('ldlidar_node'),
+            '/launch/ldlidar_bringup.launch.py'
+        ]),
+        launch_arguments={
+            'node_namespace': 'ldlidar'
+        }.items()
     )starts motor control + LiDAR components on the Pi:
 - Motor driver (communicates with Arduino via USB)
 - Teleop bridge (converts cmd_vel to motor commands)
@@ -23,9 +26,10 @@ This is the working setup for keyboard motor control + LiDAR testing.
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction, IncludeLaunchDescription
 from launch.event_handlers import OnProcessStart
 from launch.substitutions import LaunchConfiguration, Command
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
 
@@ -176,15 +180,6 @@ def generate_launch_description():
         name='static_tf_chassis_to_laser',
         arguments=['0.122', '0', '0.212', '0', '0', '0', 'chassis', 'ldlidar_base']
     )
-    
-    # Static Transform: ldlidar_base -> ldlidar_link (LiDAR sensor to scan frame)
-    # Note: This was provided by LiDAR's robot_state_publisher, but we disabled it to avoid conflicts
-    static_tf_ldlidar_base_to_link = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_tf_ldlidar_base_to_link',
-        arguments=['0', '0', '0', '0', '0', '0', 'ldlidar_base', 'ldlidar_link']
-    )
 
     # Build Launch Description
     ld = LaunchDescription()
@@ -200,7 +195,7 @@ def generate_launch_description():
     ld.add_action(static_tf_odom_to_base)  # Only odom positioning needed
     ld.add_action(static_tf_base_to_chassis)  # Robot structure
     ld.add_action(static_tf_chassis_to_laser)  # LiDAR position
-    ld.add_action(static_tf_ldlidar_base_to_link)  # LiDAR scan frame
+    # Note: ldlidar_base → ldlidar_link provided by LiDAR's robot_state_publisher
     
     # Add motor nodes
     ld.add_action(motor_driver_node)
