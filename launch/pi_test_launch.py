@@ -83,29 +83,34 @@ def generate_launch_description():
         }]
     )
 
-    # Robot State Publisher - Loads and publishes robot URDF
-    robot_description_file = os.path.join(
-        get_package_share_directory('pharma_bot'), 
-        'description', 
-        'robot.urdf.xacro'
-    )
-    
-    robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
-        parameters=[{
-            'robot_description': Command(['xacro ', robot_description_file]),
-            'use_sim_time': False,
-        }]
-    )
+    # Robot State Publisher removed - dev machine handles URDF
+    # robot_state_publisher = Node(
+    #     package='robot_state_publisher',
+    #     executable='robot_state_publisher',
+    #     name='robot_state_publisher',
+    #     output='screen',
+    #     parameters=[{
+    #         'robot_description': Command(['xacro ', robot_description_file]),
+    #         'use_sim_time': False,
+    #     }]
+    # )
 
-    # Joint State Publisher - For static wheel positions (upgrade to joint_state_bridge later)
-    joint_state_publisher = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
+    # Joint State Publisher removed - will use joint_state_bridge for real encoder data
+    # joint_state_publisher = Node(
+    #     package='joint_state_publisher',
+    #     executable='joint_state_publisher',
+    #     name='joint_state_publisher',
+    #     output='screen',
+    #     parameters=[{
+    #         'use_sim_time': False,
+    #     }]
+    # )
+
+    # Joint State Bridge - Converts motor encoder data to joint states for wheel visualization
+    joint_state_bridge = Node(
+        package='pharma_bot',
+        executable='joint_state_bridge',
+        name='joint_state_bridge',
         output='screen',
         parameters=[{
             'use_sim_time': False,
@@ -171,9 +176,8 @@ def generate_launch_description():
     ld.add_action(declare_encoder_cpr)
     ld.add_action(declare_loop_rate)
     
-    # Add robot description and transforms (start immediately)
-    ld.add_action(robot_state_publisher)
-    ld.add_action(joint_state_publisher)
+    # Add robot components - Pi handles sensors and joint states only
+    ld.add_action(joint_state_bridge)  # Real encoder data → joint states
     ld.add_action(static_tf_odom_to_base)
     ld.add_action(static_tf_base_to_lidar_base)
     ld.add_action(static_tf_lidar_base_to_link)  # Add LiDAR transform

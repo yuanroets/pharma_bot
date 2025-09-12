@@ -27,7 +27,7 @@ Or include in a launch file:
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64
+from serial_motor_demo_msgs.msg import EncoderVals
 from sensor_msgs.msg import JointState
 import math
 
@@ -40,30 +40,45 @@ class JointStateBridge(Node):
         self.joint_state_pub = self.create_publisher(JointState, '/joint_states', 10)
         
         # Subscribers
-        self.left_encoder_sub = self.create_subscription(
-            Float64, '/motor_encoder_left', self.left_encoder_callback, 10)
-        self.right_encoder_sub = self.create_subscription(
-            Float64, '/motor_encoder_right', self.right_encoder_callback, 10)
+        self.encoder_sub = self.create_subscription(
+            EncoderVals, '/encoder_vals', self.encoder_callback, 10)
         
         # State variables
         self.left_wheel_pos = 0.0
         self.right_wheel_pos = 0.0
         self.encoder_cpr = 1860.0  # Encoder counts per revolution
         
+        # Previous encoder values for position calculation
+        self.prev_left_enc = 0
+        self.prev_right_enc = 0
+        self.left_cumulative_pos = 0.0
+        self.right_cumulative_pos = 0.0
+        
         # Timer for publishing joint states
         self.timer = self.create_timer(0.1, self.publish_joint_states)  # 10Hz
         
-        self.get_logger().info('Joint State Bridge node initialized')
+        self.get_logger().info('Joint State Bridge node initialized - using encoder_vals topic')
 
-    def left_encoder_callback(self, msg):
-        """Convert left encoder count to wheel position in radians"""
-        # Convert encoder counts to radians
-        self.left_wheel_pos = (msg.data / self.encoder_cpr) * 2.0 * math.pi
-
-    def right_encoder_callback(self, msg):
-        """Convert right encoder count to wheel position in radians"""
-        # Convert encoder counts to radians
-        self.right_wheel_pos = (msg.data / self.encoder_cpr) * 2.0 * math.pi
+    def encoder_callback(self, msg):
+        """Convert encoder counts to wheel positions in radians"""
+        # Calculate change in encoder counts
+        left_delta = msg.mot_1_enc_val - self.prev_left_enc
+        right_delta = msg.mot_2_enc_val - self.prev_right_enc
+        
+        # Handle encoder rollover (if applicable)
+        # For now, assume no rollover issues
+        
+        # Update cumulative positions
+        self.left_cumulative_pos += (left_delta / self.encoder_cpr) * 2.0 * math.pi
+        self.right_cumulative_pos += (right_delta / self.encoder_cpr) * 2.0 * math.pi
+        
+        # Store current encoder values
+        self.prev_left_enc = msg.mot_1_enc_val
+        self.prev_right_enc = msg.mot_2_enc_val
+        
+        # Update wheel positions
+        self.left_wheel_pos = self.left_cumulative_pos
+        self.right_wheel_pos = self.right_cumulative_pos
 
     def publish_joint_states(self):
         """Publish joint states for wheel visualization"""
