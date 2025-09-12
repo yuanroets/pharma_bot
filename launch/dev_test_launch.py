@@ -56,19 +56,19 @@ def generate_launch_description():
         }]
     )
     
-    # Joint State Publisher - Publishes wheel joint positions
-    joint_state_publisher = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time,
-        }]
-    )
+    # Joint State Publisher - DISABLED (Pi publishes joint states from encoders)
+    # joint_state_publisher = Node(
+    #     package='joint_state_publisher',
+    #     executable='joint_state_publisher',
+    #     name='joint_state_publisher',
+    #     output='screen',
+    #     parameters=[{
+    #         'use_sim_time': use_sim_time,
+    #     }]
+    # )
 
     # CRITICAL TRANSFORMS for coordinate frame chain (WITHOUT SLAM)
-    # Complete chain: odom → base_link → ldlidar_base → ldlidar_link
+    # Complete chain: odom → base_link → chassis → laser_frame → ldlidar_link
     # NOTE: Use 'odom' as Fixed Frame in RViz
     
     # Static Transform: odom -> base_link (robot position in odometry frame)
@@ -80,16 +80,8 @@ def generate_launch_description():
         arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
     )
     
-    # Static Transform: base_link -> ldlidar_base (LiDAR mounting position)
-    # Position matches simulation: x=0.122m (forward), z=0.212m (up)
-    static_tf_base_to_lidar_base = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_tf_base_to_lidar_base',
-        arguments=['0.122', '0', '0.212', '0', '0', '0', 'base_link', 'ldlidar_base']
-    )
-    
-    # NOTE: ldlidar_base -> ldlidar_link transform is provided by the LiDAR driver itself
+    # NOTE: base_link → chassis → laser_frame transforms are provided by robot_state_publisher
+    # NOTE: laser_frame → ldlidar_link transform is provided by Pi
 
     # Teleop Keyboard Control - For driving the robot
     teleop_keyboard = Node(
@@ -129,10 +121,9 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     
     # Add core visualization components (start immediately)
-    ld.add_action(robot_state_publisher)  # RE-ENABLED - Pi robot description not working
-    ld.add_action(joint_state_publisher)
+    ld.add_action(robot_state_publisher)  # Dev machine publishes URDF
+    # ld.add_action(joint_state_publisher)  # DISABLED - Pi publishes joint states
     ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
-    ld.add_action(static_tf_base_to_lidar_base)  # CRITICAL: base_link → ldlidar_base
     ld.add_action(rviz2)
     
     # Add delayed teleop

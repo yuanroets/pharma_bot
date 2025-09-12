@@ -13,15 +13,15 @@ slam_toolbox:
     odom_frame: odom
     map_frame: map
     base_frame: base_footprint             # Robot's base frame for TF (matches simulation)
-    scan_topic: /ldlidar_node/scan         # For real robot, use LD19 LiDAR topic
-    # scan_topic: /scan                    # For simulation, use default scan topic
-    mode: mapping                     # Changed to localization mode for testing saved map
+    # scan_topic: /ldlidar_node/scan         # For real robot, use LD19 LiDAR topic
+    scan_topic: /scan                    # For simulation, use default scan topic
+    mode: localisation                     # Changed to localization mode for testing saved map
 
     # Map saving configuration - Updated path for your system
     # This determines where maps will be saved when you call save_map service
     map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/corridor_serial
     # map_start_pose: [0.0, 0.0, 0.0]  # Starting pose (x, y, theta)
-    map_start_at_dock: false          # false for mapping, true for localization from dock
+    map_start_at_dock: true          # false for mapping, true for localization from dock
                                     # Set to true for localization mode to start at known dock position
 
     debug_logging: false

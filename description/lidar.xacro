@@ -3,11 +3,14 @@
 
     <joint name="laser_joint" type="fixed">
         <parent link="chassis"/>
-        <child link="laser_frame"/>
+        <child link="ldlidar_base"/>
         <origin xyz="0.122 0 0.212" rpy="0 0 0"/>
     </joint>
 
-    <link name="laser_frame">
+    <link name="ldlidar_base">
+        <!-- Visual and collision elements for simulation compatibility -->
+        <!-- In real robot: ldlidar_bringup.launch.py provides ldlidar_base->ldlidar_link transform -->
+        <!-- In simulation: we need these visual elements since real LiDAR driver isn't used -->
         <visual>
             <geometry>
                 <cylinder radius="0.05" length="0.04"/>
@@ -33,7 +36,9 @@
 
 
 
-    <gazebo reference="laser_frame">
+    <!-- Gazebo LiDAR sensor for simulation -->
+    <!-- Note: In real robot, this is handled by ldlidar_node driver -->
+    <gazebo reference="ldlidar_base">
         <material>Gazebo/Black</material>
 
         <sensor name="laser" type="gpu_lidar">
@@ -54,7 +59,7 @@
                 </range>
             </lidar>
             <topic>scan</topic>
-            <gz_frame_id>laser_frame</gz_frame_id>
+            <gz_frame_id>ldlidar_base</gz_frame_id>
         </sensor>
     </gazebo>
 
