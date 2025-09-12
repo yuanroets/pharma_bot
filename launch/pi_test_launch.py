@@ -17,10 +17,11 @@ This is the working setup for keyboard motor control + LiDAR testing.
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction, IncludeLaunchDescription
 from launch.event_handlers import OnProcessStart
 from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
@@ -100,21 +101,18 @@ def generate_launch_description():
         }]
     )
 
-    # LiDAR Launch - Uses official ldlidar_bringup (with robot_state_publisher commented out)
+    # LiDAR Launch - Uses official ldlidar_bringup with topic remapping
     # Note: All TF transforms now come from our main robot URDF
-    lidar_launch = ExecuteProcess(
-        cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
-        output='screen',
-        name='lidar_launch'
-    )
-
-    # Topic relay: /ldlidar_node/scan -> /scan (for standard ROS compatibility)
-    scan_relay = Node(
-        package='topic_tools',
-        executable='relay',
-        name='scan_relay',
-        arguments=['ldlidar_node/scan', 'scan'],
-        output='screen'
+    # Remap /ldlidar_node/scan -> /scan for standard ROS compatibility
+    lidar_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            get_package_share_directory('ldlidar_node'),
+            '/launch/ldlidar_bringup.launch.py'
+        ]),
+        launch_arguments={}.items(),
+        remappings=[
+            ('/ldlidar_node/scan', '/scan')
+        ]
     )
 
     # LiDAR Lifecycle Manager - Robust lifecycle management
@@ -160,7 +158,6 @@ def generate_launch_description():
     
     # Add LiDAR components
     ld.add_action(lidar_launch)
-    ld.add_action(scan_relay)
     ld.add_action(delayed_lifecycle_manager)
 
     return ld
