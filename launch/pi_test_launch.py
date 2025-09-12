@@ -3,16 +3,7 @@
 Pi Test Launch File - MOTOR CONTROL + LIDAR
 ===========================================
 
-This laun    # LiDAR Launch - Include with remapping to avoid robot_description conflict
-    lidar_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            get_package_share_directory('ldlidar_node'),
-            '/launch/ldlidar_bringup.launch.py'
-        ]),
-        launch_arguments={
-            'node_namespace': 'ldlidar'
-        }.items()
-    )starts motor control + LiDAR components on the Pi:
+This launch file starts motor control + LiDAR components on the Pi:
 - Motor driver (communicates with Arduino via USB)
 - Teleop bridge (converts cmd_vel to motor commands)
 - LiDAR driver with lifecycle management (/dev/ttyAMA0)
@@ -26,10 +17,9 @@ This is the working setup for keyboard motor control + LiDAR testing.
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction
 from launch.event_handlers import OnProcessStart
 from launch.substitutions import LaunchConfiguration, Command
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
 
@@ -99,29 +89,6 @@ def generate_launch_description():
         }]
     )
 
-    # Robot State Publisher removed - dev machine handles URDF
-    # robot_state_publisher = Node(
-    #     package='robot_state_publisher',
-    #     executable='robot_state_publisher',
-    #     name='robot_state_publisher',
-    #     output='screen',
-    #     parameters=[{
-    #         'robot_description': Command(['xacro ', robot_description_file]),
-    #         'use_sim_time': False,
-    #     }]
-    # )
-
-    # Joint State Publisher removed - will use joint_state_bridge for real encoder data
-    # joint_state_publisher = Node(
-    #     package='joint_state_publisher',
-    #     executable='joint_state_publisher',
-    #     name='joint_state_publisher',
-    #     output='screen',
-    #     parameters=[{
-    #         'use_sim_time': False,
-    #     }]
-    # )
-
     # Joint State Bridge - Converts motor encoder data to joint states for wheel visualization
     joint_state_bridge = Node(
         package='pharma_bot',
@@ -133,11 +100,10 @@ def generate_launch_description():
         }]
     )
 
-    # LiDAR Launch - Starts the LD19 LiDAR driver
-    # Note: LiDAR will create its own robot_state_publisher, but it will only publish
-    # ldlidar_base → ldlidar_link. Our main URDF connects chassis → ldlidar_link directly.
+    # LiDAR Launch - Starts ONLY the LD19 LiDAR driver (no robot_state_publisher)
+    # Note: Using custom launch to avoid conflicting robot descriptions
     lidar_launch = ExecuteProcess(
-        cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
+        cmd=['ros2', 'launch', 'pharma_bot', 'ldlidar_node_only.launch.py'],
         output='screen',
         name='lidar_launch'
     )
@@ -180,6 +146,15 @@ def generate_launch_description():
         name='static_tf_chassis_to_laser',
         arguments=['0.122', '0', '0.212', '0', '0', '0', 'chassis', 'ldlidar_base']
     )
+    
+    # Static Transform: ldlidar_base -> ldlidar_link (LiDAR sensor to scan frame)
+    # Note: This replaces the LiDAR's robot_state_publisher that we disabled
+    static_tf_ldlidar_base_to_link = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_ldlidar_base_to_link',
+        arguments=['0', '0', '0', '0', '0', '0', 'ldlidar_base', 'ldlidar_link']
+    )
 
     # Build Launch Description
     ld = LaunchDescription()
@@ -195,7 +170,7 @@ def generate_launch_description():
     ld.add_action(static_tf_odom_to_base)  # Only odom positioning needed
     ld.add_action(static_tf_base_to_chassis)  # Robot structure
     ld.add_action(static_tf_chassis_to_laser)  # LiDAR position
-    # Note: ldlidar_base → ldlidar_link provided by LiDAR's robot_state_publisher
+    ld.add_action(static_tf_ldlidar_base_to_link)  # LiDAR scan frame
     
     # Add motor nodes
     ld.add_action(motor_driver_node)
