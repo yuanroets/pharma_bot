@@ -34,7 +34,14 @@
         </xacro:inertial_cylinder>
     </link>
 
+    <!-- LiDAR scan frame joint (replaces ldlidar_state_publisher) -->
+    <joint name="ldlidar_link_joint" type="fixed">
+        <parent link="ldlidar_base"/>
+        <child link="ldlidar_link"/>
+        <origin xyz="0 0 0.02745" rpy="0 0 0"/>
+    </joint>
 
+    <link name="ldlidar_link" />
 
     <!-- Gazebo LiDAR sensor for simulation -->
     <!-- Note: In real robot, this is handled by ldlidar_node driver -->

@@ -100,10 +100,10 @@ def generate_launch_description():
         }]
     )
 
-    # LiDAR Launch - Starts ONLY the LD19 LiDAR driver (no robot_state_publisher)
-    # Note: Using custom launch to avoid conflicting robot descriptions
+    # LiDAR Launch - Uses official ldlidar_bringup (with robot_state_publisher commented out)
+    # Note: All TF transforms now come from our main robot URDF
     lidar_launch = ExecuteProcess(
-        cmd=['ros2', 'launch', 'pharma_bot', 'ldlidar_node_only.launch.py'],
+        cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
         output='screen',
         name='lidar_launch'
     )
@@ -124,36 +124,12 @@ def generate_launch_description():
 
     # Static Transform: odom -> base_link (robot position in odometry frame)
     # NOTE: This is temporary - in future, motor driver should publish odometry
+    # All other transforms (base_link->chassis->ldlidar_base->ldlidar_link) come from URDF
     static_tf_odom_to_base = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_odom_to_base',
         arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
-    )
-    
-    # Static Transform: base_link -> chassis (robot structure)
-    static_tf_base_to_chassis = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_tf_base_to_chassis',
-        arguments=['0', '0', '0.075', '0', '0', '0', 'base_link', 'chassis']
-    )
-    
-    # Static Transform: chassis -> ldlidar_base (LiDAR sensor position)
-    static_tf_chassis_to_laser = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_tf_chassis_to_laser',
-        arguments=['0.122', '0', '0.212', '0', '0', '0', 'chassis', 'ldlidar_base']
-    )
-    
-    # Static Transform: ldlidar_base -> ldlidar_link (LiDAR sensor to scan frame)
-    # Note: This replaces the LiDAR's robot_state_publisher that we disabled
-    static_tf_ldlidar_base_to_link = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_tf_ldlidar_base_to_link',
-        arguments=['0', '0', '0', '0', '0', '0', 'ldlidar_base', 'ldlidar_link']
     )
 
     # Build Launch Description
@@ -167,10 +143,7 @@ def generate_launch_description():
     
     # Add robot components - Pi handles sensors and joint states only
     ld.add_action(joint_state_bridge)  # Real encoder data → joint states
-    ld.add_action(static_tf_odom_to_base)  # Only odom positioning needed
-    ld.add_action(static_tf_base_to_chassis)  # Robot structure
-    ld.add_action(static_tf_chassis_to_laser)  # LiDAR position
-    ld.add_action(static_tf_ldlidar_base_to_link)  # LiDAR scan frame
+    ld.add_action(static_tf_odom_to_base)  # Only odom positioning needed (URDF handles rest)
     
     # Add motor nodes
     ld.add_action(motor_driver_node)
