@@ -79,7 +79,7 @@ def generate_launch_description():
     )
 
     # NOTE: Joint states will come from Pi's motor_to_joint_state_bridge
-    # No need for static joint_state_publisher when using real robot
+    # This provides dynamic wheel rotation based on real encoder feedback
 
     # CRITICAL TRANSFORMS for coordinate frame chain (WITHOUT SLAM)
     # Complete chain: odom → base_link → ldlidar_base → ldlidar_link

@@ -15,6 +15,7 @@ This is the working setup for keyboard motor control + LiDAR testing.
 """
 
 import os
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
 from launch.substitutions import LaunchConfiguration
@@ -82,15 +83,16 @@ def generate_launch_description():
     )
 
     # Motor to Joint State Bridge - Converts encoder data to joint states for RViz
-    joint_state_bridge = Node(
-        package='pharma_bot',
-        executable='motor_to_joint_state_bridge',
-        name='motor_to_joint_state_bridge',
+    # Find the workspace source directory and run the Python script directly
+    pharma_bot_share = get_package_share_directory('pharma_bot')
+    # Navigate from install/pharma_bot/share/pharma_bot back to src/pharma_bot/pharma_bot
+    workspace_src = os.path.join(os.path.dirname(pharma_bot_share), '..', '..', '..', 'src')
+    bridge_script = os.path.join(workspace_src, 'pharma_bot', 'pharma_bot', 'motor_to_joint_state_bridge.py')
+    
+    joint_state_bridge = ExecuteProcess(
+        cmd=['python3', bridge_script],
         output='screen',
-        parameters=[{
-            'encoder_cpr': encoder_cpr,
-            'wheel_joint_names': ['left_wheel_joint', 'right_wheel_joint']
-        }]
+        name='motor_to_joint_state_bridge'
     )
 
     # LiDAR Component Node - Direct launch without robot_state_publisher conflict
@@ -150,7 +152,7 @@ def generate_launch_description():
     # Add motor nodes
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
-    ld.add_action(joint_state_bridge)
+    ld.add_action(joint_state_bridge)          # Dynamic joint states for wheel rotation
     
     # Add LiDAR components
     ld.add_action(lidar_node)

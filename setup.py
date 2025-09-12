@@ -26,7 +26,6 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'motor_to_joint_state_bridge = pharma_bot.motor_to_joint_state_bridge:main',
         ],
     },
 )
