@@ -82,6 +82,22 @@ def generate_launch_description():
         arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
     )
     
+    # Static Transforms: base_link -> wheel frames (for wheel visualization)
+    # Note: These should come from robot_state_publisher, but adding as backup
+    static_tf_base_to_left_wheel = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_base_to_left_wheel',
+        arguments=['0', '0.1485', '0.01', '-1.5708', '0', '0', 'base_link', 'left_wheel']
+    )
+    
+    static_tf_base_to_right_wheel = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_base_to_right_wheel',
+        arguments=['0', '-0.1485', '0.01', '-1.5708', '0', '0', 'base_link', 'right_wheel']
+    )
+    
     # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
     # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
 
@@ -126,6 +142,8 @@ def generate_launch_description():
     ld.add_action(robot_state_publisher)  # Dev machine publishes URDF
     # ld.add_action(joint_state_publisher)  # DISABLED - Pi publishes joint states
     ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
+    ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
+    ld.add_action(static_tf_base_to_right_wheel) # Backup wheel transforms
     ld.add_action(rviz2)
     
     # Add delayed teleop
