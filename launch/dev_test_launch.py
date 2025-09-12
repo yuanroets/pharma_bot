@@ -78,16 +78,8 @@ def generate_launch_description():
         }]
     )
 
-    # Joint State Publisher - Publishes wheel joint positions
-    joint_state_publisher = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time,
-        }]
-    )
+    # NOTE: Joint states will come from Pi's motor_to_joint_state_bridge
+    # No need for static joint_state_publisher when using real robot
 
     # CRITICAL TRANSFORMS for coordinate frame chain (WITHOUT SLAM)
     # Complete chain: odom → base_link → ldlidar_base → ldlidar_link
@@ -153,7 +145,7 @@ def generate_launch_description():
     # Add core visualization components (start immediately)
     ld.add_action(robot_state_publisher)
     ld.add_action(ldlidar_state_publisher)       # CRITICAL: ldlidar_base → ldlidar_link
-    ld.add_action(joint_state_publisher)
+    # NOTE: joint_state_publisher removed - Pi provides dynamic joint states
     ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
     ld.add_action(static_tf_base_to_lidar_base)  # CRITICAL: base_link → ldlidar_base
     ld.add_action(rviz2)

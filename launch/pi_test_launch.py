@@ -16,8 +16,7 @@ This is the working setup for keyboard motor control + LiDAR testing.
 
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction
-from launch.event_handlers import OnProcessStart
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -82,11 +81,35 @@ def generate_launch_description():
         }]
     )
 
-    # LiDAR Launch - Starts the LD19 LiDAR driver
-    lidar_launch = ExecuteProcess(
-        cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
+    # Motor to Joint State Bridge - Converts encoder data to joint states for RViz
+    joint_state_bridge = Node(
+        package='pharma_bot',
+        executable='motor_to_joint_state_bridge.py',
+        name='motor_to_joint_state_bridge',
         output='screen',
-        name='lidar_launch'
+        parameters=[{
+            'encoder_cpr': encoder_cpr,
+            'wheel_joint_names': ['left_wheel_joint', 'right_wheel_joint']
+        }]
+    )
+
+    # LiDAR Component Node - Direct launch without robot_state_publisher conflict
+    lidar_node = Node(
+        package='ldlidar_component',
+        executable='ldlidar_component',
+        name='ldlidar_node',
+        output='screen',
+        parameters=[{
+            'product_name': 'LDLiDAR_LD19',
+            'topic_name': 'scan',
+            'frame_id': 'ldlidar_link',
+            'port_name': '/dev/ttyAMA0',
+            'port_baudrate': 230400,
+            'laser_scan_dir': True,
+            'enable_angle_crop_func': False,
+            'angle_crop_min': 135.0,
+            'angle_crop_max': 225.0
+        }]
     )
 
     # LiDAR Lifecycle Commands - Configure and activate LiDAR
@@ -103,17 +126,10 @@ def generate_launch_description():
     )
 
     # Event Handlers for Sequenced LiDAR Startup
-    # Configure LiDAR 3 seconds after launch starts
-    configure_after_launch = RegisterEventHandler(
-        OnProcessStart(
-            target_action=lidar_launch,
-            on_start=[
-                TimerAction(
-                    period=3.0,
-                    actions=[lidar_configure]
-                )
-            ]
-        )
+    # Configure LiDAR 3 seconds after node starts
+    configure_after_launch = TimerAction(
+        period=3.0,
+        actions=[lidar_configure]
     )
 
     # Activate LiDAR 2 seconds after configure
@@ -134,9 +150,10 @@ def generate_launch_description():
     # Add motor nodes
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
+    ld.add_action(joint_state_bridge)
     
     # Add LiDAR components
-    ld.add_action(lidar_launch)
+    ld.add_action(lidar_node)
     ld.add_action(configure_after_launch)
     ld.add_action(activate_after_configure)
 
