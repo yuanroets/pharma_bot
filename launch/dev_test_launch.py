@@ -102,11 +102,10 @@ def generate_launch_description():
     # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
 
     # SLAM Toolbox Node - Maps environment using LiDAR data
-    # Uses LifecycleNode with explicit topic remapping (same approach as ldlidar vendors)
-    slam_toolbox_node = LifecycleNode(
+    # Using regular Node (not LifecycleNode) for automatic startup
+    slam_toolbox_node = Node(
         package='slam_toolbox',
         executable='async_slam_toolbox_node',
-        namespace='',
         name='slam_toolbox',
         output='screen',
         parameters=[
