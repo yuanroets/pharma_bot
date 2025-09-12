@@ -22,6 +22,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -45,13 +46,14 @@ def generate_launch_description():
     )
 
     # Robot State Publisher - Loads and publishes robot URDF
+    robot_description_config = Command(['xacro ', robot_description_file])
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name='robot_state_publisher',
         output='screen',
         parameters=[{
-            'robot_description': Command(['xacro ', robot_description_file]),
+            'robot_description': ParameterValue(robot_description_config, value_type=str),
             'use_sim_time': use_sim_time,
         }]
     )
@@ -68,7 +70,7 @@ def generate_launch_description():
     # )
 
     # CRITICAL TRANSFORMS for coordinate frame chain (WITHOUT SLAM)
-    # Complete chain: odom → base_link → chassis → laser_frame → ldlidar_link
+    # Complete chain: odom → base_link → chassis → ldlidar_base → ldlidar_link
     # NOTE: Use 'odom' as Fixed Frame in RViz
     
     # Static Transform: odom -> base_link (robot position in odometry frame)
@@ -80,8 +82,8 @@ def generate_launch_description():
         arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
     )
     
-    # NOTE: base_link → chassis → laser_frame transforms are provided by robot_state_publisher
-    # NOTE: laser_frame → ldlidar_link transform is provided by Pi
+    # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
+    # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
 
     # Teleop Keyboard Control - For driving the robot
     teleop_keyboard = Node(

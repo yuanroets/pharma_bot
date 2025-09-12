@@ -3,7 +3,13 @@
 Pi Test Launch File - MOTOR CONTROL + LIDAR
 ===========================================
 
-This launch file starts motor control + LiDAR components on the Pi:
+This laun    # LiDAR Launch - Starts ONLY the LD19 LiDAR driver (no robot_state_publisher)
+    # Note: Using custom launch to avoid conflicting robot descriptions
+    lidar_launch = ExecuteProcess(
+        cmd=['ros2', 'launch', 'pharma_bot', 'ldlidar_node_only.launch.py'],
+        output='screen',
+        name='lidar_launch'
+    )starts motor control + LiDAR components on the Pi:
 - Motor driver (communicates with Arduino via USB)
 - Teleop bridge (converts cmd_vel to motor commands)
 - LiDAR driver with lifecycle management (/dev/ttyAMA0)
@@ -170,6 +176,15 @@ def generate_launch_description():
         name='static_tf_chassis_to_laser',
         arguments=['0.122', '0', '0.212', '0', '0', '0', 'chassis', 'ldlidar_base']
     )
+    
+    # Static Transform: ldlidar_base -> ldlidar_link (LiDAR sensor to scan frame)
+    # Note: This would normally be provided by LiDAR's robot_state_publisher, but we disabled it
+    static_tf_ldlidar_base_to_link = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_ldlidar_base_to_link',
+        arguments=['0', '0', '0', '0', '0', '0', 'ldlidar_base', 'ldlidar_link']
+    )
 
     # Build Launch Description
     ld = LaunchDescription()
@@ -185,6 +200,7 @@ def generate_launch_description():
     ld.add_action(static_tf_odom_to_base)  # Only odom positioning needed
     ld.add_action(static_tf_base_to_chassis)  # Robot structure
     ld.add_action(static_tf_chassis_to_laser)  # LiDAR position
+    ld.add_action(static_tf_ldlidar_base_to_link)  # LiDAR scan frame
     
     # Add motor nodes
     ld.add_action(motor_driver_node)
