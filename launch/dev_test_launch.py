@@ -3,7 +3,13 @@
 Dev Machine Test Launch File - TELEOP + BASIC VISUALIZATION
 ===========================================================
 
-This launch file starts teleop + basic RViz visualization on the dev machine:
+This l    # Add core visualization components (start immediately)
+    ld.add_action(robot_state_publisher)
+    ld.add_action(ldlidar_state_publisher)       # CRITICAL: ldlidar_base → ldlidar_link
+    ld.add_action(joint_state_publisher)         # CRITICAL: Publishes joint states for robot body visibility
+    ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
+    ld.add_action(static_tf_base_to_lidar_base)  # CRITICAL: base_link → ldlidar_base
+    ld.add_action(rviz2)ile starts teleop + basic RViz visualization on the dev machine:
 - Teleop keyboard control
 - Robot state publisher (URDF)
 - LiDAR state publisher (for ldlidar_base → ldlidar_link transform)
@@ -78,8 +84,18 @@ def generate_launch_description():
         }]
     )
 
-    # NOTE: Joint states will come from Pi's motor_to_joint_state_bridge
-    # This provides dynamic wheel rotation based on real encoder feedback
+    # Joint State Publisher - Publishes static wheel joint positions
+    # NOTE: This provides static joint states so robot body appears in RViz
+    # Wheels won't rotate, but robot model will be visible
+    joint_state_publisher = Node(
+        package='joint_state_publisher',
+        executable='joint_state_publisher',
+        name='joint_state_publisher',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+        }]
+    )
 
     # CRITICAL TRANSFORMS for coordinate frame chain (WITHOUT SLAM)
     # Complete chain: odom → base_link → ldlidar_base → ldlidar_link

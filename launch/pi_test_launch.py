@@ -17,7 +17,8 @@ This is the working setup for keyboard motor control + LiDAR testing.
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, RegisterEventHandler
+from launch.event_handlers import OnProcessStart
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -82,36 +83,11 @@ def generate_launch_description():
         }]
     )
 
-    # Motor to Joint State Bridge - Converts encoder data to joint states for RViz
-    # Find the workspace source directory and run the Python script directly
-    pharma_bot_share = get_package_share_directory('pharma_bot')
-    # Navigate from install/pharma_bot/share/pharma_bot back to src/pharma_bot/pharma_bot
-    workspace_src = os.path.join(os.path.dirname(pharma_bot_share), '..', '..', '..', 'src')
-    bridge_script = os.path.join(workspace_src, 'pharma_bot', 'pharma_bot', 'motor_to_joint_state_bridge.py')
-    
-    joint_state_bridge = ExecuteProcess(
-        cmd=['python3', bridge_script],
+    # LiDAR Launch - Starts the LD19 LiDAR driver (WORKING VERSION)
+    lidar_launch = ExecuteProcess(
+        cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
         output='screen',
-        name='motor_to_joint_state_bridge'
-    )
-
-    # LiDAR Component Node - Direct launch without robot_state_publisher conflict
-    lidar_node = Node(
-        package='ldlidar_component',
-        executable='ldlidar_component',
-        name='ldlidar_node',
-        output='screen',
-        parameters=[{
-            'product_name': 'LDLiDAR_LD19',
-            'topic_name': 'scan',
-            'frame_id': 'ldlidar_link',
-            'port_name': '/dev/ttyAMA0',
-            'port_baudrate': 230400,
-            'laser_scan_dir': True,
-            'enable_angle_crop_func': False,
-            'angle_crop_min': 135.0,
-            'angle_crop_max': 225.0
-        }]
+        name='lidar_launch'
     )
 
     # LiDAR Lifecycle Commands - Configure and activate LiDAR
@@ -128,10 +104,17 @@ def generate_launch_description():
     )
 
     # Event Handlers for Sequenced LiDAR Startup
-    # Configure LiDAR 3 seconds after node starts
-    configure_after_launch = TimerAction(
-        period=3.0,
-        actions=[lidar_configure]
+    # Configure LiDAR 3 seconds after launch starts
+    configure_after_launch = RegisterEventHandler(
+        OnProcessStart(
+            target_action=lidar_launch,
+            on_start=[
+                TimerAction(
+                    period=3.0,
+                    actions=[lidar_configure]
+                )
+            ]
+        )
     )
 
     # Activate LiDAR 2 seconds after configure
@@ -152,10 +135,10 @@ def generate_launch_description():
     # Add motor nodes
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
-    ld.add_action(joint_state_bridge)          # Dynamic joint states for wheel rotation
+    # NOTE: Joint state bridge disabled for now - wheels will be static in RViz
     
-    # Add LiDAR components
-    ld.add_action(lidar_node)
+    # Add LiDAR components (using working bringup launch)
+    ld.add_action(lidar_launch)
     ld.add_action(configure_after_launch)
     ld.add_action(activate_after_configure)
 
