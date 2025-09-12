@@ -15,7 +15,7 @@ slam_toolbox:
     base_frame: base_link             # Robot's base frame for TF (matches simulation)
     scan_topic: /scan                 # Standard scan topic (remapped in launch file to /ldlidar_node/scan)
     # scan_topic: /ldlidar_node/scan  # LiDAR's actual topic (now handled by launch file remapping)
-    mode: mapping                     # Changed to localization mode for testing saved map
+    mode: mapping                     # mapping mode for creating new maps
 
     # Map saving configuration - Updated path for your system
     # This determines where maps will be saved when you call save_map service
