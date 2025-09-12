@@ -119,17 +119,18 @@ def generate_launch_description():
         name='lidar_launch'
     )
 
-    # LiDAR Lifecycle Commands - Configure and activate LiDAR
-    lidar_configure = ExecuteProcess(
-        cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'configure'],
-        output='screen',
-        name='lidar_configure'
+    # LiDAR Lifecycle Manager - Robust lifecycle management
+    lidar_lifecycle_manager = Node(
+        package='pharma_bot',
+        executable='lidar_lifecycle_manager',
+        name='lidar_lifecycle_manager',
+        output='screen'
     )
 
-    lidar_activate = ExecuteProcess(
-        cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'activate'],
-        output='screen', 
-        name='lidar_activate'
+    # Delayed start for lifecycle manager (give LiDAR node time to start)
+    delayed_lifecycle_manager = TimerAction(
+        period=3.0,
+        actions=[lidar_lifecycle_manager]
     )
 
     # CRITICAL TRANSFORMS for coordinate frame chain
@@ -153,26 +154,6 @@ def generate_launch_description():
         arguments=['0.122', '0', '0.212', '0', '0', '0', 'base_link', 'ldlidar_base']
     )
 
-    # Event Handlers for Sequenced LiDAR Startup
-    # Configure LiDAR 3 seconds after launch starts
-    configure_after_launch = RegisterEventHandler(
-        OnProcessStart(
-            target_action=lidar_launch,
-            on_start=[
-                TimerAction(
-                    period=3.0,
-                    actions=[lidar_configure]
-                )
-            ]
-        )
-    )
-
-    # Activate LiDAR 2 seconds after configure
-    activate_after_configure = TimerAction(
-        period=5.0,  # Total 5 seconds (3 for launch + 2 for configure)
-        actions=[lidar_activate]
-    )
-
     # Build Launch Description
     ld = LaunchDescription()
 
@@ -194,7 +175,6 @@ def generate_launch_description():
     
     # Add LiDAR components
     ld.add_action(lidar_launch)
-    ld.add_action(configure_after_launch)
-    ld.add_action(activate_after_configure)
+    ld.add_action(delayed_lifecycle_manager)
 
     return ld
