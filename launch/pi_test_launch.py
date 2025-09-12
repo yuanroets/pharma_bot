@@ -112,9 +112,9 @@ def generate_launch_description():
         }]
     )
 
-    # LiDAR Launch - Starts the LD19 LiDAR driver
+    # LiDAR Launch - Starts the LD19 LiDAR driver WITHOUT robot state publisher
     lidar_launch = ExecuteProcess(
-        cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
+        cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py', 'node_namespace:=ldlidar_ns'],
         output='screen',
         name='lidar_launch'
     )
@@ -154,6 +154,14 @@ def generate_launch_description():
         arguments=['0.122', '0', '0.212', '0', '0', '0', 'base_link', 'ldlidar_base']
     )
 
+    # Static Transform: ldlidar_base -> ldlidar_link (LiDAR internal transform)
+    static_tf_lidar_base_to_link = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_lidar_base_to_link',
+        arguments=['0', '0', '0', '0', '0', '0', 'ldlidar_base', 'ldlidar_link']
+    )
+
     # Build Launch Description
     ld = LaunchDescription()
 
@@ -168,6 +176,7 @@ def generate_launch_description():
     ld.add_action(joint_state_publisher)
     ld.add_action(static_tf_odom_to_base)
     ld.add_action(static_tf_base_to_lidar_base)
+    ld.add_action(static_tf_lidar_base_to_link)  # Add LiDAR transform
     
     # Add motor nodes
     ld.add_action(motor_driver_node)
