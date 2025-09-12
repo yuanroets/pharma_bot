@@ -44,17 +44,17 @@ def generate_launch_description():
         description='Use simulation time for real robot'
     )
 
-    # Robot State Publisher - Loads and publishes robot URDF
-    robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
-        parameters=[{
-            'robot_description': Command(['xacro ', robot_description_file]),
-            'use_sim_time': use_sim_time,
-        }]
-    )
+    # Robot State Publisher - DISABLED (Pi publishes robot description)
+    # robot_state_publisher = Node(
+    #     package='robot_state_publisher',
+    #     executable='robot_state_publisher',
+    #     name='robot_state_publisher',
+    #     output='screen',
+    #     parameters=[{
+    #         'robot_description': Command(['xacro ', robot_description_file]),
+    #         'use_sim_time': use_sim_time,
+    #     }]
+    # )
     
     # Joint State Publisher - Publishes wheel joint positions
     joint_state_publisher = Node(
@@ -129,7 +129,7 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     
     # Add core visualization components (start immediately)
-    ld.add_action(robot_state_publisher)
+    # ld.add_action(robot_state_publisher)  # DISABLED - Pi publishes robot description
     ld.add_action(joint_state_publisher)
     ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
     ld.add_action(static_tf_base_to_lidar_base)  # CRITICAL: base_link → ldlidar_base
