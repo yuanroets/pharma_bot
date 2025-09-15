@@ -74,13 +74,13 @@ def generate_launch_description():
     # NOTE: Use 'odom' as Fixed Frame in RViz
     
     # Static Transform: odom -> base_link (robot position in odometry frame)
-    # NOTE: This is temporary - in future, motor driver should publish odometry
-    static_tf_odom_to_base = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_tf_odom_to_base',
-        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
-    )
+    # NOTE: DISABLED for SLAM - SLAM toolbox will publish odom->base_link transform
+    # static_tf_odom_to_base = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='static_tf_odom_to_base',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
+    # )
     
     # Static Transforms: base_link -> wheel frames (for wheel visualization)
     # Note: These should come from robot_state_publisher, but adding as backup
@@ -88,14 +88,14 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_left_wheel',
-        arguments=['0', '0.1485', '0.01', '-1.5708', '0', '0', 'base_link', 'left_wheel']
+        arguments=['0', '0.052', '0.0', '0', '0', '0', 'base_link', 'left_wheel']  # Updated to actual dimensions
     )
     
     static_tf_base_to_right_wheel = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_right_wheel',
-        arguments=['0', '-0.1485', '0.01', '-1.5708', '0', '0', 'base_link', 'right_wheel']
+        arguments=['0', '-0.052', '0.0', '0', '0', '0', 'base_link', 'right_wheel']  # Updated to actual dimensions
     )
     
     # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
@@ -167,7 +167,7 @@ def generate_launch_description():
     # Add core visualization components (start immediately)
     ld.add_action(robot_state_publisher)  # Dev machine publishes URDF
     # ld.add_action(joint_state_publisher)  # DISABLED - Pi publishes joint states
-    ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
+    # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
     ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
     ld.add_action(static_tf_base_to_right_wheel) # Backup wheel transforms
     ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (vendor approach)

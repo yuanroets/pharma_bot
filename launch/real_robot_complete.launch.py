@@ -77,8 +77,8 @@ def generate_launch_description():
         name='teleop_bridge',
         output='screen',
         parameters=[{
-            'wheel_separation': 0.297,
-            'wheel_radius': 0.033,
+            'wheel_separation': 0.115,
+            'wheel_radius': 0.025,  # Real hardware wheel size (25mm)
             'max_linear_speed': 1.0,
             'max_angular_speed': 2.0,
         }]

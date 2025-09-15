@@ -82,8 +82,8 @@ def generate_launch_description():
         name='teleop_bridge',
         output='screen',
         parameters=[{
-            'wheel_separation': 0.297,
-            'wheel_radius': 0.033,
+            'wheel_separation': 0.115,  # 115mm actual wheel separation (matches URDF)
+            'wheel_radius': 0.025,      # 25mm radius (real hardware)
             'max_linear_speed': 1.0,
             'max_angular_speed': 2.0,
         }]
@@ -97,6 +97,20 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'use_sim_time': False,
+        }]
+    )
+
+    # Simple Odometry Node - Converts encoder data to odom->base_link transform for SLAM
+    simple_odometry = Node(
+        package='pharma_bot',
+        executable='python3',
+        name='simple_odometry',
+        output='screen',
+        arguments=[os.path.join(pkg_pharma_bot, 'scripts', 'simple_odometry.py')],
+        parameters=[{
+            'encoder_cpr': encoder_cpr,
+            'wheel_separation': 0.115,  # 115mm actual wheel separation (matches URDF)
+            'wheel_radius': 0.025,      # 25mm radius (real hardware)
         }]
     )
 
@@ -123,14 +137,13 @@ def generate_launch_description():
     )
 
     # Static Transform: odom -> base_link (robot position in odometry frame)
-    # NOTE: This is temporary - in future, motor driver should publish odometry
-    # All other transforms (base_link->chassis->ldlidar_base->ldlidar_link) come from URDF
-    static_tf_odom_to_base = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_tf_odom_to_base',
-        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
-    )
+    # NOTE: DISABLED for SLAM - SLAM will handle odom->base_link transform
+    # static_tf_odom_to_base = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='static_tf_odom_to_base',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
+    # )
 
     # Build Launch Description
     ld = LaunchDescription()
@@ -143,7 +156,8 @@ def generate_launch_description():
     
     # Add robot components - Pi handles sensors and joint states only
     ld.add_action(joint_state_bridge)  # Real encoder data → joint states
-    ld.add_action(static_tf_odom_to_base)  # Only odom positioning needed (URDF handles rest)
+    ld.add_action(simple_odometry)     # Real encoder data → odometry for SLAM
+    # ld.add_action(static_tf_odom_to_base)  # DISABLED - SLAM handles odom->base_link
     
     # Add motor nodes
     ld.add_action(motor_driver_node)

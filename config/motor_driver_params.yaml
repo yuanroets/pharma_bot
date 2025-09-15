@@ -12,8 +12,8 @@ motor_driver:
     loop_rate: 20  # Hz
     
     # Robot physical parameters
-    wheel_separation: 0.17  # meters
-    wheel_radius: 0.033     # meters
+    wheel_separation: 0.115  # meters - matches URDF chassis_width
+    wheel_radius: 0.025     # meters - real hardware wheel size (25mm)
     
     # PID parameters (from Arduino code)
     kp: 20
