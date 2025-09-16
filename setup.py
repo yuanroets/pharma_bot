@@ -16,6 +16,7 @@ setup(
         (os.path.join('share', package_name, 'description'), glob(os.path.join('description', '*'))),
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*'))),
         (os.path.join('share', package_name, 'worlds'), glob(os.path.join('worlds', '*'))),
+        (os.path.join('share', package_name, 'scripts'), glob(os.path.join('scripts', '*.py'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,6 +27,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'joint_state_bridge = pharma_bot.joint_state_bridge:main',
+            'lidar_lifecycle_manager = pharma_bot.lidar_lifecycle_manager:main',
         ],
     },
 )

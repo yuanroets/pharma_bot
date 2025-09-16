@@ -19,11 +19,17 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, RegisterEventHandler
 from launch.event_handlers import OnProcessStart
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
 
 
 def generate_launch_description():
+    # Package directory
+    pkg_pharma_bot = get_package_share_directory('pharma_bot')
+    
+    # URDF file path
+    robot_description_file = os.path.join(pkg_pharma_bot, 'description', 'robot.urdf.xacro')
+    
     # Launch Configuration Variables
     serial_port = LaunchConfiguration('serial_port')
     baud_rate = LaunchConfiguration('baud_rate')
@@ -76,52 +82,67 @@ def generate_launch_description():
         name='teleop_bridge',
         output='screen',
         parameters=[{
-            'wheel_separation': 0.297,
-            'wheel_radius': 0.033,
+            'wheel_separation': 0.155,  # 155mm actual wheel separation (matches URDF)
+            'wheel_radius': 0.02569,      # 25.69mm radius (real hardware)
             'max_linear_speed': 1.0,
             'max_angular_speed': 2.0,
         }]
     )
 
-    # LiDAR Launch - Starts the LD19 LiDAR driver (WORKING VERSION)
+    # Joint State Bridge - Converts motor encoder data to joint states for wheel visualization
+    joint_state_bridge = Node(
+        package='pharma_bot',
+        executable='joint_state_bridge',
+        name='joint_state_bridge',
+        output='screen',
+        parameters=[{
+            'use_sim_time': False,
+        }]
+    )
+
+    # Simple Odometry Node - Converts encoder data to odom->base_link transform for SLAM
+    simple_odometry = Node(
+        package='serial_motor_demo',
+        executable='simple_odometry',
+        name='simple_odometry',
+        output='screen',
+        parameters=[{
+            'encoder_cpr': encoder_cpr,
+            'wheel_separation': 0.155,  # 155mm actual wheel separation (measured)
+            'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
+        }]
+    )
+
+    # LiDAR Launch - Uses official ldlidar_bringup (with robot_state_publisher commented out)
+    # Note: All TF transforms now come from our main robot URDF
     lidar_launch = ExecuteProcess(
         cmd=['ros2', 'launch', 'ldlidar_node', 'ldlidar_bringup.launch.py'],
         output='screen',
         name='lidar_launch'
     )
 
-    # LiDAR Lifecycle Commands - Configure and activate LiDAR
-    lidar_configure = ExecuteProcess(
-        cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'configure'],
-        output='screen',
-        name='lidar_configure'
+    # LiDAR Lifecycle Manager - Robust lifecycle management
+    lidar_lifecycle_manager = Node(
+        package='pharma_bot',
+        executable='lidar_lifecycle_manager',
+        name='lidar_lifecycle_manager',
+        output='screen'
     )
 
-    lidar_activate = ExecuteProcess(
-        cmd=['ros2', 'lifecycle', 'set', '/ldlidar_node', 'activate'],
-        output='screen', 
-        name='lidar_activate'
+    # Delayed start for lifecycle manager (give LiDAR node time to start)
+    delayed_lifecycle_manager = TimerAction(
+        period=3.0,
+        actions=[lidar_lifecycle_manager]
     )
 
-    # Event Handlers for Sequenced LiDAR Startup
-    # Configure LiDAR 3 seconds after launch starts
-    configure_after_launch = RegisterEventHandler(
-        OnProcessStart(
-            target_action=lidar_launch,
-            on_start=[
-                TimerAction(
-                    period=3.0,
-                    actions=[lidar_configure]
-                )
-            ]
-        )
-    )
-
-    # Activate LiDAR 2 seconds after configure
-    activate_after_configure = TimerAction(
-        period=5.0,  # Total 5 seconds (3 for launch + 2 for configure)
-        actions=[lidar_activate]
-    )
+    # Static Transform: odom -> base_link (robot position in odometry frame)
+    # NOTE: DISABLED for SLAM - SLAM will handle odom->base_link transform
+    # static_tf_odom_to_base = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='static_tf_odom_to_base',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
+    # )
 
     # Build Launch Description
     ld = LaunchDescription()
@@ -132,14 +153,18 @@ def generate_launch_description():
     ld.add_action(declare_encoder_cpr)
     ld.add_action(declare_loop_rate)
     
+    # Add robot components - Pi handles sensors and joint states only
+    ld.add_action(joint_state_bridge)  # Real encoder data → joint states
+    ld.add_action(simple_odometry)     # Real encoder data → odometry for SLAM
+    # ld.add_action(static_tf_odom_to_base)  # DISABLED - SLAM handles odom->base_link
+    
     # Add motor nodes
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
     # NOTE: Joint state bridge disabled for now - wheels will be static in RViz
     
-    # Add LiDAR components (using working bringup launch)
+        # Add LiDAR components
     ld.add_action(lidar_launch)
-    ld.add_action(configure_after_launch)
-    ld.add_action(activate_after_configure)
+    ld.add_action(delayed_lifecycle_manager)
 
     return ld

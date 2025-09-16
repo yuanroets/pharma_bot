@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """
-Dev Machine Test Launch File - TELEOP + BASIC VISUALIZATION
-===========================================================
+Dev Machine Test Launch File - TELEOP + SLAM VISUALIZATION
+==========================================================
 
-This l    # Add core visualization components (start immediately)
-    ld.add_action(robot_state_publisher)
-    ld.add_action(ldlidar_state_publisher)       # CRITICAL: ldlidar_base → ldlidar_link
-    ld.add_action(joint_state_publisher)         # CRITICAL: Publishes joint states for robot body visibility
-    ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
-    ld.add_action(static_tf_base_to_lidar_base)  # CRITICAL: base_link → ldlidar_base
-    ld.add_action(rviz2)ile starts teleop + basic RViz visualization on the dev machine:
+This launch file starts teleop + SLAM mapping on the dev machine:
 - Teleop keyboard control
 - Robot state publisher (URDF)
-- LiDAR state publisher (for ldlidar_base → ldlidar_link transform)
+- SLAM Toolbox with proper topic remapping
 - Static transforms (coordinate frame linking)
-- RViz2 with robot model and LiDAR data
+- RViz2 with robot model, LiDAR data, and SLAM visualization
 
 Usage on dev machine:
     ros2 launch pharma_bot dev_test_launch.py
@@ -27,7 +21,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration, Command
-from launch_ros.actions import Node
+from launch_ros.actions import Node, LifecycleNode
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -51,75 +46,86 @@ def generate_launch_description():
     )
 
     # Robot State Publisher - Loads and publishes robot URDF
+    robot_description_config = Command(['xacro ', robot_description_file])
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name='robot_state_publisher',
         output='screen',
         parameters=[{
-            'robot_description': Command(['xacro ', robot_description_file]),
+            'robot_description': ParameterValue(robot_description_config, value_type=str),
             'use_sim_time': use_sim_time,
         }]
     )
     
-    # LiDAR Robot State Publisher for ldlidar_base -> ldlidar_link transform
-    # This is CRITICAL - provides the final link in the transform chain
-    ldlidar_urdf_file = os.path.join(
-        get_package_share_directory('ldlidar_node'),
-        'urdf',
-        'ldlidar_descr.urdf.xml'
-    )
-    
-    with open(ldlidar_urdf_file, 'r') as file:
-        ldlidar_robot_description = file.read()
-    
-    ldlidar_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='ldlidar_state_publisher',
-        output='screen',
-        parameters=[{
-            'robot_description': ldlidar_robot_description,
-            'use_sim_time': use_sim_time,
-        }]
-    )
-
-    # Joint State Publisher - Publishes static wheel joint positions
-    # NOTE: This provides static joint states so robot body appears in RViz
-    # Wheels won't rotate, but robot model will be visible
-    joint_state_publisher = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time,
-        }]
-    )
+    # Joint State Publisher - DISABLED (Pi publishes joint states from encoders)
+    # joint_state_publisher = Node(
+    #     package='joint_state_publisher',
+    #     executable='joint_state_publisher',
+    #     name='joint_state_publisher',
+    #     output='screen',
+    #     parameters=[{
+    #         'use_sim_time': use_sim_time,
+    #     }]
+    # )
 
     # CRITICAL TRANSFORMS for coordinate frame chain (WITHOUT SLAM)
-    # Complete chain: odom → base_link → ldlidar_base → ldlidar_link
-    # NOTE: Use 'odom' as Fixed Frame in RViz (not 'map' since we're not using SLAM yet)
+    # Complete chain: odom → base_link → chassis → ldlidar_base → ldlidar_link
+    # NOTE: Use 'odom' as Fixed Frame in RViz
     
     # Static Transform: odom -> base_link (robot position in odometry frame)
-    # NOTE: This is temporary - in future, motor driver should publish odometry
-    static_tf_odom_to_base = Node(
+    # NOTE: DISABLED for SLAM - SLAM toolbox will publish odom->base_link transform
+    # static_tf_odom_to_base = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     name='static_tf_odom_to_base',
+    #     arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
+    # )
+    
+    # Static Transforms: base_link -> wheel frames (for wheel visualization)
+    # Note: These should come from robot_state_publisher, but adding as backup
+    static_tf_base_to_left_wheel = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='static_tf_odom_to_base',
-        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
+        name='static_tf_base_to_left_wheel',
+        arguments=['0', '0.0775', '0.0', '0', '0', '0', 'base_link', 'left_wheel']  # 155mm separation = 77.5mm offset
     )
     
-    # Static Transform: base_link -> ldlidar_base (LiDAR mounting position)
-    # Position matches simulation: x=0.122m (forward), z=0.212m (up)
-    static_tf_base_to_lidar_base = Node(
+    static_tf_base_to_right_wheel = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='static_tf_base_to_lidar_base',
-        arguments=['0.122', '0', '0.212', '0', '0', '0', 'base_link', 'ldlidar_base']
+        name='static_tf_base_to_right_wheel',
+        arguments=['0', '-0.0775', '0.0', '0', '0', '0', 'base_link', 'right_wheel']  # 155mm separation = 77.5mm offset
     )
     
-    # NOTE: ldlidar_base -> ldlidar_link transform is provided by ldlidar_state_publisher above
+    # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
+    # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
+
+    # Lifecycle manager for SLAM Toolbox (same approach as ldlidar vendors)
+    slam_lifecycle_manager = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager',
+        output='screen',
+        parameters=[
+            '/home/ubuntu/dev_ws/src/pharma_bot/config/lifecycle_mgr_slam.yaml'
+        ]
+    )
+
+    # SLAM Toolbox Node - Maps environment using LiDAR data (EXACT vendor approach)
+    slam_toolbox_node = LifecycleNode(
+        package='slam_toolbox',
+        executable='async_slam_toolbox_node',
+        namespace='',
+        name='slam_toolbox',
+        output='screen',
+        parameters=[
+            '/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml'
+        ],
+        remappings=[
+            ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
+        ]          
+    )
 
     # Teleop Keyboard Control - For driving the robot
     teleop_keyboard = Node(
@@ -159,11 +165,13 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     
     # Add core visualization components (start immediately)
-    ld.add_action(robot_state_publisher)
-    ld.add_action(ldlidar_state_publisher)       # CRITICAL: ldlidar_base → ldlidar_link
-    # NOTE: joint_state_publisher removed - Pi provides dynamic joint states
-    ld.add_action(static_tf_odom_to_base)        # CRITICAL: odom → base_link
-    ld.add_action(static_tf_base_to_lidar_base)  # CRITICAL: base_link → ldlidar_base
+    ld.add_action(robot_state_publisher)  # Dev machine publishes URDF
+    # ld.add_action(joint_state_publisher)  # DISABLED - Pi publishes joint states
+    # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
+    ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
+    ld.add_action(static_tf_base_to_right_wheel) # Backup wheel transforms
+    ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (vendor approach)
+    ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
     ld.add_action(rviz2)
     
     # Add delayed teleop
