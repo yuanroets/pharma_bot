@@ -45,19 +45,18 @@ def generate_launch_description():
         description='Use simulation time for real robot'
     )
 
-    # Robot State Publisher - REMOVED: Pi handles robot transforms
-    # Robot description is only needed for Pi, not dev machine
-    # robot_description_config = Command(['xacro ', robot_description_file])
-    # robot_state_publisher = Node(
-    #     package='robot_state_publisher',
-    #     executable='robot_state_publisher',
-    #     name='robot_state_publisher',
-    #     output='screen',
-    #     parameters=[{
-    #         'robot_description': ParameterValue(robot_description_config, value_type=str),
-    #         'use_sim_time': use_sim_time,
-    #     }]
-    # )
+    # Robot State Publisher - RESTORED: Dev machine handles robot transforms
+    robot_description_config = Command(['xacro ', robot_description_file])
+    robot_state_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        name='robot_state_publisher',
+        output='screen',
+        parameters=[{
+            'robot_description': ParameterValue(robot_description_config, value_type=str),
+            'use_sim_time': use_sim_time,
+        }]
+    )
     
     # Joint State Publisher - DISABLED (Pi publishes joint states from encoders)
     # joint_state_publisher = Node(
@@ -89,45 +88,45 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_left_wheel',
-        arguments=['0', '0.052', '0.0', '0', '0', '0', 'base_link', 'left_wheel']  # Updated to actual dimensions
+        arguments=['0', '0.0775', '0.0', '0', '0', '0', 'base_link', 'left_wheel']  # 155mm separation = 77.5mm offset
     )
     
     static_tf_base_to_right_wheel = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_right_wheel',
-        arguments=['0', '-0.052', '0.0', '0', '0', '0', 'base_link', 'right_wheel']  # Updated to actual dimensions
+        arguments=['0', '-0.0775', '0.0', '0', '0', '0', 'base_link', 'right_wheel']  # 155mm separation = 77.5mm offset
     )
     
     # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
     # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
 
-    # SLAM COMPONENTS - COMMENTED OUT FOR ODOMETRY TESTING
+    # SLAM COMPONENTS - RESTORED FOR TESTING
     # Lifecycle manager for SLAM Toolbox (same approach as ldlidar vendors)
-    # slam_lifecycle_manager = Node(
-    #     package='nav2_lifecycle_manager',
-    #     executable='lifecycle_manager',
-    #     name='lifecycle_manager',
-    #     output='screen',
-    #     parameters=[
-    #         '/home/ubuntu/dev_ws/src/pharma_bot/config/lifecycle_mgr_slam.yaml'
-    #     ]
-    # )
+    slam_lifecycle_manager = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager',
+        output='screen',
+        parameters=[
+            '/home/ubuntu/dev_ws/src/pharma_bot/config/lifecycle_mgr_slam.yaml'
+        ]
+    )
 
     # SLAM Toolbox Node - Maps environment using LiDAR data (EXACT vendor approach)
-    # slam_toolbox_node = LifecycleNode(
-    #     package='slam_toolbox',
-    #     executable='async_slam_toolbox_node',
-    #     namespace='',
-    #     name='slam_toolbox',
-    #     output='screen',
-    #     parameters=[
-    #         '/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml'
-    #     ],
-    #     remappings=[
-    #         ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
-    #     ]          
-    # )
+    slam_toolbox_node = LifecycleNode(
+        package='slam_toolbox',
+        executable='async_slam_toolbox_node',
+        namespace='',
+        name='slam_toolbox',
+        output='screen',
+        parameters=[
+            '/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml'
+        ],
+        remappings=[
+            ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
+        ]          
+    )
 
     # Teleop Keyboard Control - For driving the robot
     teleop_keyboard = Node(
@@ -167,14 +166,13 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     
     # Add core visualization components (start immediately)
-    # ld.add_action(robot_state_publisher)  # REMOVED: Pi handles robot transforms
+    ld.add_action(robot_state_publisher)  # RESTORED: Dev machine handles robot transforms
     # ld.add_action(joint_state_publisher)  # DISABLED - Pi publishes joint states
     # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
     ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
     ld.add_action(static_tf_base_to_right_wheel) # Backup wheel transforms
-    # SLAM COMPONENTS COMMENTED OUT FOR ODOMETRY TESTING:
-    # ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (vendor approach)
-    # ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
+    ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (restored)
+    ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping (restored)
     ld.add_action(rviz2)
     
     # Add delayed teleop

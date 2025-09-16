@@ -82,8 +82,8 @@ def generate_launch_description():
         name='teleop_bridge',
         output='screen',
         parameters=[{
-            'wheel_separation': 0.115,  # 115mm actual wheel separation (matches URDF)
-            'wheel_radius': 0.025,      # 25mm radius (real hardware)
+            'wheel_separation': 0.155,  # 155mm actual wheel separation (measured)
+            'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
             'max_linear_speed': 1.0,
             'max_angular_speed': 2.0,
         }]
@@ -108,22 +108,22 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.115,  # Back to original value - problem was encoder_cpr
-            'wheel_radius': 0.025,      # 25mm radius (real hardware)
+            'wheel_separation': 0.155,  # 155mm actual wheel separation (measured)
+            'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
         }]
     )
 
-    # Robot State Publisher - Publishes robot URDF transforms including base_link->base_footprint
-    robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
-        parameters=[{
-            'robot_description': Command(['xacro ', robot_description_file]),
-            'use_sim_time': False
-        }]
-    )
+    # Robot State Publisher - REMOVED: Dev machine handles robot transforms
+    # robot_state_publisher = Node(
+    #     package='robot_state_publisher',
+    #     executable='robot_state_publisher',
+    #     name='robot_state_publisher',
+    #     output='screen',
+    #     parameters=[{
+    #         'robot_description': Command(['xacro ', robot_description_file]),
+    #         'use_sim_time': False
+    #     }]
+    # )
 
     # LiDAR Launch - Uses official ldlidar_bringup (with robot_state_publisher commented out)
     # Note: All TF transforms now come from our main robot URDF
@@ -192,7 +192,7 @@ def generate_launch_description():
     ld.add_action(declare_loop_rate)
     
     # Add robot components - Pi handles sensors and joint states only
-    ld.add_action(robot_state_publisher)  # Publishes base_link->base_footprint transform
+    # ld.add_action(robot_state_publisher)  # REMOVED: Dev machine handles robot transforms
     ld.add_action(joint_state_bridge)  # Real encoder data → joint states
     ld.add_action(simple_odometry)     # Real encoder data → odometry for SLAM
     # ld.add_action(static_tf_odom_to_base)  # DISABLED - SLAM handles odom->base_link
