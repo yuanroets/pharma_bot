@@ -102,31 +102,32 @@ def generate_launch_description():
     # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
     # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
 
+    # SLAM COMPONENTS - COMMENTED OUT FOR ODOMETRY TESTING
     # Lifecycle manager for SLAM Toolbox (same approach as ldlidar vendors)
-    slam_lifecycle_manager = Node(
-        package='nav2_lifecycle_manager',
-        executable='lifecycle_manager',
-        name='lifecycle_manager',
-        output='screen',
-        parameters=[
-            '/home/ubuntu/dev_ws/src/pharma_bot/config/lifecycle_mgr_slam.yaml'
-        ]
-    )
+    # slam_lifecycle_manager = Node(
+    #     package='nav2_lifecycle_manager',
+    #     executable='lifecycle_manager',
+    #     name='lifecycle_manager',
+    #     output='screen',
+    #     parameters=[
+    #         '/home/ubuntu/dev_ws/src/pharma_bot/config/lifecycle_mgr_slam.yaml'
+    #     ]
+    # )
 
     # SLAM Toolbox Node - Maps environment using LiDAR data (EXACT vendor approach)
-    slam_toolbox_node = LifecycleNode(
-        package='slam_toolbox',
-        executable='async_slam_toolbox_node',
-        namespace='',
-        name='slam_toolbox',
-        output='screen',
-        parameters=[
-            '/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml'
-        ],
-        remappings=[
-            ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
-        ]          
-    )
+    # slam_toolbox_node = LifecycleNode(
+    #     package='slam_toolbox',
+    #     executable='async_slam_toolbox_node',
+    #     namespace='',
+    #     name='slam_toolbox',
+    #     output='screen',
+    #     parameters=[
+    #         '/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml'
+    #     ],
+    #     remappings=[
+    #         ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
+    #     ]          
+    # )
 
     # Teleop Keyboard Control - For driving the robot
     teleop_keyboard = Node(
@@ -171,8 +172,9 @@ def generate_launch_description():
     # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
     ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
     ld.add_action(static_tf_base_to_right_wheel) # Backup wheel transforms
-    ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (vendor approach)
-    ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
+    # SLAM COMPONENTS COMMENTED OUT FOR ODOMETRY TESTING:
+    # ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (vendor approach)
+    # ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
     ld.add_action(rviz2)
     
     # Add delayed teleop

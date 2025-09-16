@@ -20,7 +20,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, TimerAction
 from launch.event_handlers import OnProcessStart
 from launch.substitutions import LaunchConfiguration, Command
-from launch_ros.actions import Node
+from launch_ros.actions import Node, LifecycleNode
 
 
 def generate_launch_description():
@@ -51,8 +51,8 @@ def generate_launch_description():
     
     declare_encoder_cpr = DeclareLaunchArgument(
         'encoder_cpr',
-        default_value='1860',
-        description='Encoder counts per revolution'
+        default_value='1859',
+        description='Encoder counts per revolution (measured: L=1866, R=1851, avg=1859)'
     )
     
     declare_loop_rate = DeclareLaunchArgument(
@@ -146,6 +146,32 @@ def generate_launch_description():
         period=3.0,
         actions=[lidar_lifecycle_manager]
     )
+
+    # SLAM COMPONENTS - COMMENTED OUT (can be enabled for testing SLAM on Pi)
+    # NOTE: Usually SLAM runs on dev machine, but can test locally
+    # slam_lifecycle_manager_slam = Node(
+    #     package='nav2_lifecycle_manager',
+    #     executable='lifecycle_manager',
+    #     name='lifecycle_manager_slam',
+    #     output='screen',
+    #     parameters=[
+    #         os.path.join(pkg_pharma_bot, 'config', 'lifecycle_mgr_slam.yaml')
+    #     ]
+    # )
+
+    # slam_toolbox_node = LifecycleNode(
+    #     package='slam_toolbox',
+    #     executable='async_slam_toolbox_node',
+    #     namespace='',
+    #     name='slam_toolbox',
+    #     output='screen',
+    #     parameters=[
+    #         os.path.join(pkg_pharma_bot, 'config', 'mapper_params_online_async.yaml')
+    #     ],
+    #     remappings=[
+    #         ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
+    #     ]          
+    # )
 
     # Static Transform: odom -> base_link (robot position in odometry frame)
     # NOTE: DISABLED for SLAM - SLAM will handle odom->base_link transform
