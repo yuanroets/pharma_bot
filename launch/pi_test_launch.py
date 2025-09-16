@@ -108,8 +108,20 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.166,  # CALIBRATION TEST: Increased from 0.115 to fix rotation accuracy
+            'wheel_separation': 0.115,  # Back to original value - problem was encoder_cpr
             'wheel_radius': 0.025,      # 25mm radius (real hardware)
+        }]
+    )
+
+    # Robot State Publisher - Publishes robot URDF transforms including base_link->base_footprint
+    robot_state_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        name='robot_state_publisher',
+        output='screen',
+        parameters=[{
+            'robot_description': Command(['xacro ', robot_description_file]),
+            'use_sim_time': False
         }]
     )
 
@@ -154,6 +166,7 @@ def generate_launch_description():
     ld.add_action(declare_loop_rate)
     
     # Add robot components - Pi handles sensors and joint states only
+    ld.add_action(robot_state_publisher)  # Publishes base_link->base_footprint transform
     ld.add_action(joint_state_bridge)  # Real encoder data → joint states
     ld.add_action(simple_odometry)     # Real encoder data → odometry for SLAM
     # ld.add_action(static_tf_odom_to_base)  # DISABLED - SLAM handles odom->base_link

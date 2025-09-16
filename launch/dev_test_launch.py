@@ -45,18 +45,19 @@ def generate_launch_description():
         description='Use simulation time for real robot'
     )
 
-    # Robot State Publisher - Loads and publishes robot URDF
-    robot_description_config = Command(['xacro ', robot_description_file])
-    robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
-        parameters=[{
-            'robot_description': ParameterValue(robot_description_config, value_type=str),
-            'use_sim_time': use_sim_time,
-        }]
-    )
+    # Robot State Publisher - REMOVED: Pi handles robot transforms
+    # Robot description is only needed for Pi, not dev machine
+    # robot_description_config = Command(['xacro ', robot_description_file])
+    # robot_state_publisher = Node(
+    #     package='robot_state_publisher',
+    #     executable='robot_state_publisher',
+    #     name='robot_state_publisher',
+    #     output='screen',
+    #     parameters=[{
+    #         'robot_description': ParameterValue(robot_description_config, value_type=str),
+    #         'use_sim_time': use_sim_time,
+    #     }]
+    # )
     
     # Joint State Publisher - DISABLED (Pi publishes joint states from encoders)
     # joint_state_publisher = Node(
@@ -165,7 +166,7 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     
     # Add core visualization components (start immediately)
-    ld.add_action(robot_state_publisher)  # Dev machine publishes URDF
+    # ld.add_action(robot_state_publisher)  # REMOVED: Pi handles robot transforms
     # ld.add_action(joint_state_publisher)  # DISABLED - Pi publishes joint states
     # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
     ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
