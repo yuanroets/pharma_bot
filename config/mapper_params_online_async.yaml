@@ -12,35 +12,35 @@ slam_toolbox:
     # ROS Parameters - Updated for LD19 LiDAR and custom robot setup
     odom_frame: odom
     map_frame: map
-    base_frame: base_link             # Robot's base frame for TF (matches simulation)
+    base_frame: base_footprint        # Using base_footprint for better 2D SLAM stability
     scan_topic: /scan                 # Standard scan topic (remapped in launch file to /ldlidar_node/scan)
     # scan_topic: /ldlidar_node/scan  # LiDAR's actual topic (now handled by launch file remapping)
     mode: mapping                     # Changed back to mapping mode for creating new maps
 
     # Map saving configuration - Updated path for your system
     # This determines where maps will be saved when you call save_map service
-    map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/corridor_serial
-    map_start_pose: [0.0, 0.0, 0.0]  # Starting pose (x, y, theta)
-    map_start_at_dock: true          # false for mapping, true for localization from dock
+    # map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/corridor_serial
+    # map_start_pose: [0.0, 0.0, 0.0]  # Starting pose (x, y, theta)
+    map_start_at_dock: false          # false for mapping, true for localization from dock
                                     # Set to true for localization mode to start at known dock position
 
     debug_logging: false
-    throttle_scans: 1
+    throttle_scans: 2                     # Skip every other scan to reduce network load
     transform_publish_period: 0.02 #if 0 never publishes odometry
-    map_update_interval: 5.0
+    map_update_interval: 2.0              # Faster map updates for network delays
     resolution: 0.05
     max_laser_range: 20.0 #for rastering images
-    minimum_time_interval: 0.5
-    transform_timeout: 0.2
+    minimum_time_interval: 0.2            # Reduced for network operation
+    transform_timeout: 0.5                # Increased timeout for network delays
     tf_buffer_duration: 30.
     stack_size_to_use: 40000000 #// program needs a larger stack size to serialize large maps
     enable_interactive_mode: true
 
-    # General Parameters
+    # General Parameters - Tuned for real robot with encoder odometry
     use_scan_matching: true
     use_scan_barycenter: true
-    minimum_travel_distance: 0.5
-    minimum_travel_heading: 0.5
+    minimum_travel_distance: 0.2      # Reduced from 0.5 - update map more frequently
+    minimum_travel_heading: 0.3       # Reduced from 0.5 - update on smaller rotations
     scan_buffer_size: 10
     scan_buffer_maximum_scan_distance: 10.0
     link_match_minimum_response_fine: 0.1  

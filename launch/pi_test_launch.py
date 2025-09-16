@@ -102,14 +102,13 @@ def generate_launch_description():
 
     # Simple Odometry Node - Converts encoder data to odom->base_link transform for SLAM
     simple_odometry = Node(
-        package='pharma_bot',
-        executable='python3',
+        package='serial_motor_demo',
+        executable='simple_odometry',
         name='simple_odometry',
         output='screen',
-        arguments=[os.path.join(pkg_pharma_bot, 'scripts', 'simple_odometry.py')],
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.115,  # 115mm actual wheel separation (matches URDF)
+            'wheel_separation': 0.166,  # CALIBRATION TEST: Increased from 0.115 to fix rotation accuracy
             'wheel_radius': 0.025,      # 25mm radius (real hardware)
         }]
     )
