@@ -45,7 +45,7 @@ def generate_launch_description():
         description='Use simulation time for real robot'
     )
 
-    # Robot State Publisher - RESTORED: Dev machine handles robot transforms
+    # Robot State Publisher - Loads and publishes robot URDF
     robot_description_config = Command(['xacro ', robot_description_file])
     robot_state_publisher = Node(
         package='robot_state_publisher',
@@ -101,7 +101,6 @@ def generate_launch_description():
     # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
     # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
 
-    # SLAM COMPONENTS - RESTORED FOR TESTING
     # Lifecycle manager for SLAM Toolbox (same approach as ldlidar vendors)
     slam_lifecycle_manager = Node(
         package='nav2_lifecycle_manager',
@@ -166,13 +165,13 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     
     # Add core visualization components (start immediately)
-    ld.add_action(robot_state_publisher)  # RESTORED: Dev machine handles robot transforms
+    ld.add_action(robot_state_publisher)  # Dev machine publishes URDF
     # ld.add_action(joint_state_publisher)  # DISABLED - Pi publishes joint states
     # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
     ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
     ld.add_action(static_tf_base_to_right_wheel) # Backup wheel transforms
-    ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (restored)
-    ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping (restored)
+    ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (vendor approach)
+    ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
     ld.add_action(rviz2)
     
     # Add delayed teleop
