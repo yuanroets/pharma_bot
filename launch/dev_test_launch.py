@@ -122,7 +122,7 @@ def generate_launch_description():
         }]
     )
 
-    # Lifecycle manager for SLAM Toolbox (same approach as ldlidar vendors)
+    # Lifecycle manager for SLAM Toolbox
     slam_lifecycle_manager = Node(
         package='nav2_lifecycle_manager',
         executable='lifecycle_manager',
@@ -133,7 +133,7 @@ def generate_launch_description():
         ]
     )
 
-    # SLAM Toolbox Node - Maps environment using LiDAR data (EXACT vendor approach)
+    # SLAM Toolbox Node - Maps environment using LiDAR data
     slam_toolbox_node = LifecycleNode(
         package='slam_toolbox',
         executable='async_slam_toolbox_node',
@@ -193,7 +193,7 @@ def generate_launch_description():
     # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
     ld.add_action(static_tf_base_to_left_wheel)  # Wheel transforms with correct orientation
     ld.add_action(static_tf_base_to_right_wheel) # Wheel transforms with correct orientation
-    ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (vendor approach)
+    ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM
     ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
     ld.add_action(rviz2)
     
