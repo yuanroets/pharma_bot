@@ -156,7 +156,7 @@ def generate_launch_description():
     
     # Add robot components - Pi handles sensors and joint states only
     # ld.add_action(joint_state_bridge)  # DISABLED - Rebuild package after git pull to enable
-    ld.add_action(simple_odometry)     # Real encoder data → odometry for SLAM
+    # ld.add_action(simple_odometry)     # DISABLED - Rebuild serial_motor_demo package to enable
     # ld.add_action(static_tf_odom_to_base)  # DISABLED - SLAM handles odom->base_link
     
     # Add motor nodes
