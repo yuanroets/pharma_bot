@@ -99,7 +99,7 @@ def generate_launch_description():
         name='teleop_bridge',
         output='screen',
         parameters=[{
-            'wheel_separation': 0.155,  # 155mm actual wheel separation (matches URDF)
+            'wheel_separation': 0.173,  # Updated from rotation test: 155mm * (402.9°/360°) = 173mm
             'wheel_radius': 0.02569,      # 25.69mm radius (real hardware)
             'max_linear_speed': 1.0,
             'max_angular_speed': 2.0,
@@ -125,7 +125,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.155,  # 155mm actual wheel separation (measured)
+            'wheel_separation': 0.173,  # Updated from rotation test: 155mm * (402.9°/360°) = 173mm
             'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
         }]
     )

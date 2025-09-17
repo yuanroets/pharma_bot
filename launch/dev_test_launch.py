@@ -96,14 +96,14 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_left_wheel',
-        arguments=['0', '0.0775', '0.0', '0', '0', '1.5708', 'base_link', 'left_wheel']  # 155mm separation, +90° yaw
+        arguments=['0', '0.0865', '0.0', '0', '0', '1.5708', 'base_link', 'left_wheel']  # 173mm separation, +90° yaw
     )
     
     static_tf_base_to_right_wheel = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_right_wheel',
-        arguments=['0', '-0.0775', '0.0', '0', '0', '-1.5708', 'base_link', 'right_wheel']  # 155mm separation, -90° yaw
+        arguments=['0', '-0.0865', '0.0', '0', '0', '-1.5708', 'base_link', 'right_wheel']  # 173mm separation, -90° yaw
     )
     
     # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
@@ -117,7 +117,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.155,  # 155mm actual wheel separation (measured)
+            'wheel_separation': 0.173,  # Updated from rotation test: 155mm * (402.9°/360°) = 173mm
             'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
         }]
     )
