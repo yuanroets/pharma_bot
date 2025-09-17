@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 """
-Dev Machine Test Launch File - TELEOP + SLAM MAPPING
-====================================================
+Dev Machine Test Launch File - TELEOP + SLAM LOCALIZATION
+=========================================================
 
-This launch file starts teleop + SLAM mapping on the dev machine:
+This launch file starts teleop + SLAM localization on the dev machine:
 - Teleop keyboard control  
 - Robot state publisher (URDF)
-- SLAM Toolbox MAPPING mode (creates new maps in real-time)
+- SLAM Toolbox LOCALIZATION mode (uses saved maps for Nav2)
 - Static transforms (coordinate frame linking)
 - RViz2 with robot model, LiDAR data, and SLAM visualization
 
 Usage on dev machine:
-    ros2 launch pharma_bot dev_test_launch.py
-
-For localization mode (Nav2), use:
     ros2 launch pharma_bot dev_test_launch_localization.py
 
 Make sure to set ROS_DOMAIN_ID=30 to match the Pi.
+Note: Requires saved map files for localization mode.
 """
 
 import os
@@ -136,10 +134,10 @@ def generate_launch_description():
         ]
     )
 
-    # SLAM Toolbox Mapping Node - Creates maps in real-time
+    # SLAM Toolbox Localization Node - Uses saved maps for localization (Nav2 Compatible)
     slam_toolbox_node = LifecycleNode(
         package='slam_toolbox',
-        executable='async_slam_toolbox_node',
+        executable='localization_slam_toolbox_node',
         namespace='',
         name='slam_toolbox',
         output='screen',
@@ -176,6 +174,15 @@ def generate_launch_description():
         }]
     )
 
+    # Relay Node - Forwards /cmd_vel_smoothed to /cmd_vel
+    relay_cmd_vel = Node(
+        package='topic_tools',
+        executable='relay',
+        name='relay_cmd_vel_smoothed',
+        arguments=['/cmd_vel_smoothed', '/cmd_vel'],
+        output='screen'
+    )
+
     # Delayed start for teleop (gives time for everything to initialize)
     delayed_teleop = TimerAction(
         period=3.0,
@@ -197,10 +204,13 @@ def generate_launch_description():
     ld.add_action(static_tf_base_to_left_wheel)  # Wheel transforms with correct orientation
     ld.add_action(static_tf_base_to_right_wheel) # Wheel transforms with correct orientation
     ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM
-    ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
+    ld.add_action(slam_toolbox_node)             # SLAM localization with topic remapping
     ld.add_action(rviz2)
     
     # Add delayed teleop
     ld.add_action(delayed_teleop)
+
+    # Add relay node
+    ld.add_action(relay_cmd_vel)
 
     return ld
