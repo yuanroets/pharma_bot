@@ -35,6 +35,8 @@ def generate_launch_description():
     baud_rate = LaunchConfiguration('baud_rate')
     encoder_cpr = LaunchConfiguration('encoder_cpr')
     loop_rate = LaunchConfiguration('loop_rate')
+    motor_1_scaler = LaunchConfiguration('motor_1_scaler')
+    motor_2_scaler = LaunchConfiguration('motor_2_scaler')
     
     # Launch Arguments
     declare_serial_port = DeclareLaunchArgument(
@@ -61,6 +63,18 @@ def generate_launch_description():
         description='Arduino loop rate in Hz'
     )
 
+    declare_motor_1_scaler = DeclareLaunchArgument(
+        'motor_1_scaler',
+        default_value='0.991',
+        description='Left motor scaler to correct wheel bias (11462/11572 = 0.991)'
+    )
+
+    declare_motor_2_scaler = DeclareLaunchArgument(
+        'motor_2_scaler',
+        default_value='1.0',
+        description='Right motor scaler (baseline)'
+    )
+
     # Motor Driver Node - Communicates with Arduino
     motor_driver_node = Node(
         package='serial_motor_demo',
@@ -72,6 +86,9 @@ def generate_launch_description():
             'baud_rate': baud_rate,
             'encoder_cpr': encoder_cpr,
             'loop_rate': loop_rate,
+            # Motor calibration to fix wheel bias (left wheel turning faster)
+            'motor_1_scaler': motor_1_scaler,  # Reduce left motor speed
+            'motor_2_scaler': motor_2_scaler,  # Keep right motor at baseline
         }]
     )
 
@@ -152,6 +169,8 @@ def generate_launch_description():
     ld.add_action(declare_baud_rate)
     ld.add_action(declare_encoder_cpr)
     ld.add_action(declare_loop_rate)
+    ld.add_action(declare_motor_1_scaler)
+    ld.add_action(declare_motor_2_scaler)
     
     # Add robot components - Pi handles sensors and joint states only
     ld.add_action(joint_state_bridge)  # Encoder → joint states for wheel visualization
