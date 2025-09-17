@@ -90,15 +90,16 @@ def generate_launch_description():
     )
 
     # Joint State Bridge - Converts motor encoder data to joint states for wheel visualization
-    joint_state_bridge = Node(
-        package='pharma_bot',
-        executable='joint_state_bridge',
-        name='joint_state_bridge',
-        output='screen',
-        parameters=[{
-            'use_sim_time': False,
-        }]
-    )
+    # TEMPORARILY DISABLED - Rebuild package after git pull to enable
+    # joint_state_bridge = Node(
+    #     package='pharma_bot',
+    #     executable='joint_state_bridge',
+    #     name='joint_state_bridge',
+    #     output='screen',
+    #     parameters=[{
+    #         'use_sim_time': False,
+    #     }]
+    # )
 
     # Simple Odometry Node - Converts encoder data to odom->base_link transform for SLAM
     simple_odometry = Node(
@@ -154,7 +155,7 @@ def generate_launch_description():
     ld.add_action(declare_loop_rate)
     
     # Add robot components - Pi handles sensors and joint states only
-    ld.add_action(joint_state_bridge)  # Real encoder data → joint states
+    # ld.add_action(joint_state_bridge)  # DISABLED - Rebuild package after git pull to enable
     ld.add_action(simple_odometry)     # Real encoder data → odometry for SLAM
     # ld.add_action(static_tf_odom_to_base)  # DISABLED - SLAM handles odom->base_link
     
