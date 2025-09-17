@@ -27,8 +27,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'joint_state_bridge = pharma_bot.joint_state_bridge:main',
-            'lidar_lifecycle_manager = pharma_bot.lidar_lifecycle_manager:main',
+            # All executables now in scripts/ directory and installed via CMakeLists.txt
         ],
     },
 )

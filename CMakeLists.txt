@@ -16,11 +16,13 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-# Install Python executables
+# Install Python executables from scripts directory
 install(PROGRAMS
   scripts/interactive_motor_test.py
   scripts/motor_encoder_test.py
   scripts/rpi_motor_driver.py
+  scripts/joint_state_bridge.py
+  scripts/lidar_lifecycle_manager.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

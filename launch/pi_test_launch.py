@@ -90,16 +90,15 @@ def generate_launch_description():
     )
 
     # Joint State Bridge - Converts motor encoder data to joint states for wheel visualization
-    # TEMPORARILY DISABLED - Rebuild package after git pull to enable
-    # joint_state_bridge = Node(
-    #     package='pharma_bot',
-    #     executable='joint_state_bridge',
-    #     name='joint_state_bridge',
-    #     output='screen',
-    #     parameters=[{
-    #         'use_sim_time': False,
-    #     }]
-    # )
+    joint_state_bridge = Node(
+        package='pharma_bot',
+        executable='joint_state_bridge.py',
+        name='joint_state_bridge',
+        output='screen',
+        parameters=[{
+            'use_sim_time': False,
+        }]
+    )
 
     # Simple Odometry Node - Converts encoder data to odom->base_link transform for SLAM
     simple_odometry = Node(
@@ -125,7 +124,7 @@ def generate_launch_description():
     # LiDAR Lifecycle Manager - Robust lifecycle management
     lidar_lifecycle_manager = Node(
         package='pharma_bot',
-        executable='lidar_lifecycle_manager',
+        executable='lidar_lifecycle_manager.py',
         name='lidar_lifecycle_manager',
         output='screen'
     )
@@ -155,14 +154,13 @@ def generate_launch_description():
     ld.add_action(declare_loop_rate)
     
     # Add robot components - Pi handles sensors and joint states only
-    # ld.add_action(joint_state_bridge)  # DISABLED - Rebuild package after git pull to enable
-    # ld.add_action(simple_odometry)     # DISABLED - Rebuild serial_motor_demo package to enable
+    ld.add_action(joint_state_bridge)  # Encoder → joint states for wheel visualization
+    # ld.add_action(simple_odometry)     # DISABLED - Dev machine handles odometry
     # ld.add_action(static_tf_odom_to_base)  # DISABLED - SLAM handles odom->base_link
     
     # Add motor nodes
     ld.add_action(motor_driver_node)
     ld.add_action(teleop_bridge_node)
-    # NOTE: Joint state bridge disabled for now - wheels will be static in RViz
     
         # Add LiDAR components
     ld.add_action(lidar_launch)
