@@ -51,8 +51,8 @@ def generate_launch_description():
     
     declare_encoder_cpr = DeclareLaunchArgument(
         'encoder_cpr',
-        default_value='1860',
-        description='Encoder counts per revolution'
+        default_value='1859',
+        description='Encoder counts per revolution (measured: L=1866, R=1851, avg=1859)'
     )
     
     declare_loop_rate = DeclareLaunchArgument(

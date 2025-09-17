@@ -37,12 +37,19 @@ def generate_launch_description():
     
     # Launch Configuration Variables
     use_sim_time = LaunchConfiguration('use_sim_time')
+    encoder_cpr = LaunchConfiguration('encoder_cpr')
     
     # Launch Arguments
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
         default_value='false',
         description='Use simulation time for real robot'
+    )
+
+    declare_encoder_cpr = DeclareLaunchArgument(
+        'encoder_cpr',
+        default_value='1859',
+        description='Encoder counts per revolution (measured: L=1866, R=1851, avg=1859)'
     )
 
     # Robot State Publisher - Loads and publishes robot URDF
@@ -84,22 +91,36 @@ def generate_launch_description():
     
     # Static Transforms: base_link -> wheel frames (for wheel visualization)
     # Note: These should come from robot_state_publisher, but adding as backup
+    # Wheels need 90° rotation to face forward (parallel to X-axis)
     static_tf_base_to_left_wheel = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_left_wheel',
-        arguments=['0', '0.0775', '0.0', '0', '0', '0', 'base_link', 'left_wheel']  # 155mm separation = 77.5mm offset
+        arguments=['0', '0.0775', '0.0', '0', '0', '1.5708', 'base_link', 'left_wheel']  # 155mm separation, +90° yaw
     )
     
     static_tf_base_to_right_wheel = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_tf_base_to_right_wheel',
-        arguments=['0', '-0.0775', '0.0', '0', '0', '0', 'base_link', 'right_wheel']  # 155mm separation = 77.5mm offset
+        arguments=['0', '-0.0775', '0.0', '0', '0', '-1.5708', 'base_link', 'right_wheel']  # 155mm separation, -90° yaw
     )
     
     # NOTE: base_link → chassis → ldlidar_base transforms are provided by robot_state_publisher
     # NOTE: ldlidar_base → ldlidar_link transform is provided by Pi
+
+    # Simple Odometry Node - ALSO runs on dev machine to ensure consistency
+    simple_odometry = Node(
+        package='serial_motor_demo',
+        executable='simple_odometry',
+        name='simple_odometry',
+        output='screen',
+        parameters=[{
+            'encoder_cpr': encoder_cpr,
+            'wheel_separation': 0.155,  # 155mm actual wheel separation (measured)
+            'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
+        }]
+    )
 
     # Lifecycle manager for SLAM Toolbox (same approach as ldlidar vendors)
     slam_lifecycle_manager = Node(
@@ -163,13 +184,15 @@ def generate_launch_description():
 
     # Add arguments
     ld.add_action(declare_use_sim_time)
+    ld.add_action(declare_encoder_cpr)
     
     # Add core visualization components (start immediately)
     ld.add_action(robot_state_publisher)  # Dev machine publishes URDF
+    ld.add_action(simple_odometry)        # Odometry processing (redundant but ensures consistency)
     # ld.add_action(joint_state_publisher)  # DISABLED - Pi publishes joint states
     # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
-    ld.add_action(static_tf_base_to_left_wheel)  # Backup wheel transforms
-    ld.add_action(static_tf_base_to_right_wheel) # Backup wheel transforms
+    ld.add_action(static_tf_base_to_left_wheel)  # Wheel transforms with correct orientation
+    ld.add_action(static_tf_base_to_right_wheel) # Wheel transforms with correct orientation
     ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM (vendor approach)
     ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
     ld.add_action(rviz2)

@@ -46,7 +46,7 @@ class JointStateBridge(Node):
         # State variables
         self.left_wheel_pos = 0.0
         self.right_wheel_pos = 0.0
-        self.encoder_cpr = 1860.0  # Encoder counts per revolution
+        self.encoder_cpr = 1859.0  # Encoder counts per revolution (measured: L=1866, R=1851, avg=1859)
         
         # Previous encoder values for position calculation
         self.prev_left_enc = 0
