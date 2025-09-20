@@ -136,23 +136,32 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Include AMCL localization launch (no SLAM)
-    amcl_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(pkg_pharma_bot, 'launch', 'localization_launch.py')),
-        launch_arguments={
-            'use_sim_time': 'false',
-            'map': '/home/ubuntu/dev_ws/src/pharma_bot/maps/Flat_rev1_save.yaml'
-        }.items()
+    # Relay node for /ldlidar_node/scan to /scan
+    scan_relay_node = Node(
+        package='topic_tools',
+        executable='relay',
+        name='scan_relay',
+        arguments=['/ldlidar_node/scan', '/scan'],
+        output='screen'
     )
 
-    # Include Nav2 navigation launch
-    nav2_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(pkg_pharma_bot, 'launch', 'navigation_launch.py')),
-        launch_arguments={
-            'use_sim_time': 'false',
-            'map_subscribe_transient_local': 'true'
-        }.items()
-    )
+    # Include AMCL localization launch (no SLAM)
+    # amcl_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(os.path.join(pkg_pharma_bot, 'launch', 'localization_launch.py')),
+    #     launch_arguments={
+    #         'use_sim_time': 'false',
+    #         'map': '/home/ubuntu/dev_ws/src/pharma_bot/maps/Flat_rev1_save.yaml'
+    #     }.items()
+    # )
+
+    # # Include Nav2 navigation launch
+    # nav2_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(os.path.join(pkg_pharma_bot, 'launch', 'navigation_launch.py')),
+    #     launch_arguments={
+    #         'use_sim_time': 'false',
+    #         'map_subscribe_transient_local': 'true'
+    #     }.items()
+    # )
 
     # Build Launch Description  
     ld = LaunchDescription()
@@ -168,8 +177,9 @@ def generate_launch_description():
     ld.add_action(static_tf_base_to_right_wheel)
     ld.add_action(rviz2)
     ld.add_action(relay_cmd_vel)
-    ld.add_action(amcl_launch)
-    ld.add_action(nav2_launch)
+    ld.add_action(scan_relay_node)
+    # ld.add_action(amcl_launch)
+    # ld.add_action(nav2_launch)
     
     # Add delayed teleop
     ld.add_action(delayed_teleop)
