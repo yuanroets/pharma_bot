@@ -570,3 +570,27 @@ This project required deep engineering thinking and methodical problem-solving. 
 ---
 
 **In conclusion, Pharma Bot is the result of deliberate, technically proficient engineering—not random trial and error. Every subsystem, parameter, and interface was designed, tested, and validated with care, demonstrating advanced systems engineering and software development skills.**
+
+## 34. Version Control, CI Practices, and Secure Deployment
+
+A cornerstone of the Pharma Bot project was the rigorous use of Git for version control, supporting traceability, collaboration, and continuous integration (CI) in line with advanced systems engineering principles. Every subsystem, configuration, and documentation file was tracked in a dedicated repository, ensuring that changes were auditable and reversible.
+
+**Key practices included:**
+- **Branching Strategy:** Feature branches were created for experimental development, major refactors, and subsystem upgrades. This isolated risk and enabled parallel development without destabilizing the main codebase.
+- **Commit Discipline:** Commits were atomic and descriptive, documenting the rationale for each change. This facilitated debugging, regression analysis, and knowledge transfer.
+- **Tagging and Releases:** Stable milestones were tagged, supporting reproducible builds and deployment.
+- **Code Review and Collaboration:** Pull requests were used for peer review, ensuring code quality and adherence to engineering standards.
+- **Continuous Integration:** Automated checks validated code style, build integrity, and test coverage before merging to main branches.
+
+**SSH for Secure Deployment:**
+Deployment to the Raspberry Pi was managed via SSH, enabling secure, remote updates and diagnostics. Git repositories were cloned and updated directly on the Pi using SSH keys, ensuring authentication and integrity. This approach supported rapid iteration, remote debugging, and seamless integration of new features.
+
+**Systems Engineering Rationale:**
+- **Traceability:** Every change was tracked, supporting root cause analysis and rollback in case of emergent issues.
+- **Experimentation:** Branches enabled safe exploration of new algorithms, hardware drivers, and parameter sets without risking production stability.
+- **Reproducibility:** Tagged releases and commit logs ensured that any system state could be reconstructed for validation or troubleshooting.
+- **Security:** SSH-based deployment protected against unauthorized access and ensured the integrity of updates.
+- **Documentation:** Commit messages and branch histories served as a living design log, complementing formal documentation.
+
+**In summary:**
+The disciplined use of Git and SSH elevated the project’s technical management, aligning with best practices in systems engineering and CI/CD. This ensured that Pharma Bot’s software was robust, maintainable, and ready for professional deployment in demanding environments.
