@@ -1,5 +1,24 @@
 # Software Architecture and Implementation: Pharma Bot
 
+## Launch Sequence and System Flow Overview
+Pharma Bot’s software architecture is designed for seamless orchestration of simulation and real-world operation, leveraging ROS2’s modular launch system. In simulation, the workflow typically begins by launching `launch_sim.launch.py` to initialize the robot model, sensors, and environment. For manual control, `teleop_twist_keyboard` is started, allowing keyboard-based velocity commands. SLAM Toolbox can be launched in either mapping mode (to create new maps) or localization mode (to localize within a saved map). For full autonomous navigation, the Nav2 stack is launched alongside SLAM in localization mode, enabling goal-based movement and path planning. Example launch sequence for navigation and localization:
+
+```bash
+source install/setup.bash
+ros2 launch pharma_bot launch_sim.launch.py
+ros2 launch slam_toolbox localization_launch.py slam_params_file:=/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml
+ros2 launch nav2_bringup navigation_launch.py use_sim_time:=true
+```
+
+For mapping:
+```bash
+ros2 launch pharma_bot launch_sim.launch.py
+ros2 launch slam_toolbox online_async_launch.py params_file:=/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+```
+
+On the real robot, `pi_test_launch.py` is launched on the Raspberry Pi to handle hardware integration, while `dev_test_launch.py` (mapping mode) or `dev_test_launch_localization.py` (localization mode) is launched on the development machine for high-level SLAM, visualization, and navigation. This distributed launch strategy ensures robust coordination between hardware drivers, sensor fusion, mapping, localization, and autonomous navigation, with all subsystems working together through ROS2’s topic, action, and transform frameworks.
+
 ## Introduction
 This document provides an in-depth technical analysis of the software architecture, design decisions, and implementation strategies for the Pharma Bot autonomous hospital delivery robot. The explanation covers the rationale behind key architectural choices, the use of ROS2 features such as lifecycle nodes, distributed computation, and time synchronization, and the technical depth required to achieve robust navigation, localization, and hardware integration in a real-world hospital environment.
 
