@@ -1,5 +1,144 @@
 # Software Architecture and Implementation: Pharma Bot
 
+## Workspace Architecture and Documentation Practices
+
+Pharma Bot’s workspace is organized for clarity, modularity, and traceability. The directory structure is as follows:
+
+```
+Bridge_and_Motor/
+    README.md
+    ROSArduinoBridge/
+        commands.h
+        diff_controller.h
+        encoder_driver.h
+        encoder_driver.ino
+        motor_driver.h
+        motor_driver.ino
+        ROSArduinoBridge.ino
+        sensors.h
+        servos.h
+        servos.ino
+ldrobot-lidar-ros2/
+    ldlidar_node/
+        params/
+Lidar/
+    README.md
+    3d_model/
+        LD19.step
+        LD19.stl
+    docs/
+        LDROBOT_LD19_Datasheet_V1.0.pdf
+    images/
+        ldlidar_rviz2.png
+    ldlidar/
+        CMakeLists.txt
+        package.xml
+    ldlidar_component/
+        CMakeLists.txt
+        package.xml
+        cmake-modules/
+        component/
+        include/
+        ldlidar_driver/
+        tools/
+    ldlidar_node/
+        CMakeLists.txt
+        package.xml
+        config/
+        launch/
+        params/
+        test/
+        urdf/
+    rules/
+        ldlidar.rules
+    scripts/
+        create_udev_rules.sh
+        delete_udev_rules.sh
+pharma_bot/
+    CMakeLists.txt
+    package.xml
+    README.md
+    md/
+        software_architecture.md
+    config/
+        ball_tracker_params_robot.yaml
+        ball_tracker_params_sim.yaml
+        drive_bot.rviz
+        gaz_ros2_ctl_use_sim.yaml
+        gz_bridge.yaml
+        lifecycle_mgr_slam.yaml
+        main.rviz
+        mapper_params_online_async.yaml
+        motor_driver_params.yaml
+        my_controllers.yaml
+        nav2_params.yaml
+        pharma_bot.rviz
+        slam.rviz
+        slam2.rviz
+        twist_mux.yaml
+        view_bot.rviz
+    description/
+        camera.xacro
+        depth_camera.xacro
+        face.xacro
+        gazebo_control.xacro
+        inertial_macros.xacro
+        lidar.xacro
+        robot_core.xacro
+        robot.urdf.xacro
+        ros2_control.xacro
+    docs/
+        CHRONY_SETUP.md
+        MOTOR_SETUP.md
+        odometry_test_report.md
+        SLAM_Implementation_Guide.md
+    launch/
+        dev_test_launch.py
+        dev_test_launch_localization.py
+        dev_test_amcl_launch.py
+        pi_test_launch.py
+        amcl_navigation_launch.py
+        amcl_localization_launch.py
+    maps/
+    pharma_bot/
+    resource/
+    scripts/
+    worlds/
+Report/
+    template-stb-report-eng/
+serial_motor_demo/
+    README.md
+    serial_motor_demo/
+    serial_motor_demo_msgs/
+ui_bot/
+    CMakeLists.txt
+    package.xml
+    README.md
+    setup.cfg
+    setup.py
+    launch/
+    resource/
+    test/
+    ui_bot/
+ui_old/
+    backend.py
+    CMakeLists.txt
+    index.html
+    package.xml
+    setup.py
+    ui_old/
+    ui_pharma_bot/
+```
+
+**Interdocumentary Records and Traceability**
+
+Throughout development, detailed records have been maintained in the `pharma_bot/docs/` directory, including:
+- `MOTOR_SETUP.md`: Motor and encoder setup, PID tuning, and calibration.
+- `CHRONY_SETUP.md`: Time synchronization setup and troubleshooting.
+- `odometry_test_report.md`: Empirical odometry calibration and validation.
+- `SLAM_Implementation_Guide.md`: SLAM setup, parameter tuning, and debugging.
+These documents provide a comprehensive log of progress, design changes, calibration results, and troubleshooting steps, supporting full traceability and reproducibility.
+
 ## Launch Sequence and System Flow Overview
 Pharma Bot’s software architecture is designed for seamless orchestration of simulation and real-world operation, leveraging ROS2’s modular launch system. In simulation, the workflow typically begins by launching `launch_sim.launch.py` to initialize the robot model, sensors, and environment. For manual control, `teleop_twist_keyboard` is started, allowing keyboard-based velocity commands. SLAM Toolbox can be launched in either mapping mode (to create new maps) or localization mode (to localize within a saved map). For full autonomous navigation, the Nav2 stack is launched alongside SLAM in localization mode, enabling goal-based movement and path planning. Example launch sequence for navigation and localization:
 
@@ -216,7 +355,7 @@ Recovery behaviors in Nav2 (spin, backup, drive_on_heading) handle navigation fa
 
 ## 20. Example Node/Topic/TF Diagram
 ```
-[teleop_twist_keyboard] --> /cmd_vel --> [teleop_bridge] --> [motor_driver] --> [simple_odometry] --> /odom
+[teleop_twist_keyboard] --> /cmd_vel --> [teleop_bridge] --> [motor_driver] --> [simple_odometry] --> [odom]
 [ldlidar_node] --> /ldlidar_node/scan --(relay)--> /scan --> [slam_toolbox or amcl]
 [slam_toolbox] --> /map, /tf
 [amcl] --> /tf (map->odom)
@@ -613,3 +752,82 @@ Deployment to the Raspberry Pi was managed via SSH, enabling secure, remote upda
 
 **In summary:**
 The disciplined use of Git and SSH elevated the project’s technical management, aligning with best practices in systems engineering and CI/CD. This ensured that Pharma Bot’s software was robust, maintainable, and ready for professional deployment in demanding environments.
+
+## File and Parameter Reference Guide
+
+Throughout this document, all code, configuration, and launch file references use their full, explicit paths and variable names as implemented in the Pharma Bot repository. This ensures traceability and direct applicability for technical reporting.
+
+**Key files and their roles:**
+- `pharma_bot/launch/dev_test_launch.py`: Launches teleop, robot state publisher, SLAM Toolbox (mapping), static transforms, and RViz2 for simulation and development machine testing.
+- `pharma_bot/launch/dev_test_launch_localization.py`: Launches SLAM Toolbox in localization mode with a saved map, plus visualization tools.
+- `pharma_bot/launch/dev_test_amcl_launch.py`: Launches AMCL localization and Nav2 navigation stack.
+- `pharma_bot/launch/pi_test_launch.py`: Launches motor driver (`serial_motor_demo/driver`), teleop bridge (`serial_motor_demo/teleop_bridge`), joint state bridge (`pharma_bot/joint_state_bridge.py`), and LiDAR driver (`ldlidar_node/ldlidar_bringup.launch.py`) on the Raspberry Pi.
+- `pharma_bot/launch/amcl_navigation_launch.py`, `pharma_bot/launch/amcl_localization_launch.py`: Specialized launches for AMCL-based localization and navigation.
+- `pharma_bot/config/mapper_params_online_async.yaml`: SLAM Toolbox mapping parameters.
+- `pharma_bot/config/lifecycle_mgr_slam.yaml`: Lifecycle manager configuration for SLAM Toolbox.
+- `pharma_bot/config/motor_driver_params.yaml`: Motor driver and PID parameters.
+- `pharma_bot/config/ball_tracker_params_robot.yaml`, `pharma_bot/config/ball_tracker_params_sim.yaml`: Ball tracking parameters for robot and simulation.
+- `pharma_bot/config/nav2_params.yaml`: Nav2 stack configuration.
+- `pharma_bot/config/pharma_bot.rviz`, `pharma_bot/config/slam.rviz`, `pharma_bot/config/slam2.rviz`, `pharma_bot/config/view_bot.rviz`: RViz visualization configurations.
+- `pharma_bot/config/twist_mux.yaml`: Twist multiplexer configuration.
+- `pharma_bot/description/robot.urdf.xacro`: Robot URDF model for state publishing and visualization.
+- `pharma_bot/description/*.xacro`: All referenced Xacro files for robot description.
+- `pharma_bot/docs/MOTOR_SETUP.md`: Motor and encoder setup, including CPR determination and PID tuning.
+- `pharma_bot/docs/CHRONY_SETUP.md`: Chrony time synchronization setup for distributed ROS2 nodes.
+- `pharma_bot/docs/odometry_test_report.md`: Empirical odometry calibration and validation.
+- `pharma_bot/docs/SLAM_Implementation_Guide.md`: SLAM setup, troubleshooting, and parameter tuning.
+- `Lidar/docs/LDROBOT_LD19_Datasheet_V1.0.pdf`: LiDAR hardware datasheet and wiring.
+- `Bridge_and_Motor/ROSArduinoBridge/commands.h`, `diff_controller.h`, `encoder_driver.h`, `motor_driver.h`: Arduino firmware source files for motor control and encoder integration.
+
+**Node and topic names:**
+- `serial_motor_demo/driver`: Motor driver node, parameters: `serial_port`, `baud_rate`, `encoder_cpr`, `loop_rate`, `motor_1_scaler`, `motor_2_scaler`.
+- `serial_motor_demo/teleop_bridge`: Teleop bridge node, parameters: `wheel_separation`, `wheel_radius`, `max_linear_speed`, `max_angular_speed`.
+- `pharma_bot/joint_state_bridge.py`: Converts encoder data to joint states for RViz visualization, parameter: `use_sim_time`.
+- `serial_motor_demo/simple_odometry`: Odometry node, parameters: `encoder_cpr`, `wheel_separation`, `wheel_radius`.
+- `slam_toolbox/async_slam_toolbox_node`: SLAM mapping node, parameters from `mapper_params_online_async.yaml`.
+- `slam_toolbox/localization_slam_toolbox_node`: SLAM localization node, parameters from `mapper_params_online_async.yaml`.
+- `nav2_lifecycle_manager/lifecycle_manager`: Lifecycle manager node, parameters from `lifecycle_mgr_slam.yaml`.
+- `ldlidar_node/ldlidar_bringup.launch.py`: LiDAR driver launch file, parameters from `ldlidar_node/config/lidar.yaml`.
+- `teleop_twist_keyboard`: Keyboard teleoperation node.
+- `robot_state_publisher`: Publishes robot URDF and static transforms.
+- `tf2_ros/static_transform_publisher`: Publishes static transforms for wheel and sensor frames.
+
+**Parameter names and configuration references:**
+- `encoder_cpr`: Encoder counts per revolution, set in launch files and YAML configs.
+- `wheel_separation`: Distance between wheels, set in launch files and teleop bridge node.
+- `wheel_radius`: Wheel radius, set in launch files and teleop bridge node.
+- `motor_1_scaler`, `motor_2_scaler`: Motor calibration factors, set in launch files and YAML configs.
+- `serial_port`, `baud_rate`, `loop_rate`: Serial communication parameters for Arduino motor controller.
+- `use_sim_time`: Simulation time flag, set in launch files and node parameters.
+- `slam_params_file`: SLAM Toolbox parameter file, passed as launch argument.
+- `max_linear_speed`, `max_angular_speed`: Safety limits for teleop bridge.
+- `frame_id`: LiDAR frame name, set in LiDAR YAML config.
+- `namespace`, `name`, `output`, `parameters`, `remappings`: Standard ROS2 node launch arguments.
+
+**Topic names:**
+- `/cmd_vel`: Velocity command topic for teleop and navigation.
+- `/cmd_vel_smoothed`: Smoothed velocity command topic.
+- `/scan`: LiDAR scan topic, remapped from `/ldlidar_node/scan`.
+- `/ldlidar_node/scan`: Raw LiDAR scan topic from driver.
+- `/odom`: Odometry topic published by `simple_odometry`.
+- `/tf`, `/tf_static`: Transform topics for frame management.
+- `/map`: Occupancy grid map topic.
+- `/encoder_counts`, `/pid_debug`, `/motor_speeds`: Diagnostic topics for motor and encoder monitoring.
+- `/navigate_to_pose`: Nav2 action server for navigation goals.
+
+**Message types:**
+- `EncoderVals.msg`: `int32 mot_1_enc_val`, `int32 mot_2_enc_val`
+- `MotorCommand.msg`: `bool is_pwm`, `float32 mot_1_req_rad_sec`, `float32 mot_2_req_rad_sec`
+
+**Example Launch Commands:**
+```bash
+ros2 launch pharma_bot/launch/dev_test_launch.py
+ros2 launch pharma_bot/launch/dev_test_launch_localization.py
+ros2 launch pharma_bot/launch/dev_test_amcl_launch.py
+ros2 launch pharma_bot/launch/pi_test_launch.py
+ros2 launch pharma_bot/launch/amcl_navigation_launch.py
+ros2 launch pharma_bot/launch/amcl_localization_launch.py
+ros2 launch slam_toolbox/localization_launch.py slam_params_file:=pharma_bot/config/mapper_params_online_async.yaml
+ros2 launch nav2_bringup/navigation_launch.py use_sim_time:=true
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+```
