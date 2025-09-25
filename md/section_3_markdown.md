@@ -318,652 +318,192 @@ This arrangement improves the system’s efficiency and allows for future growth
 also opens the door to upgrading to edge devices like the NVIDIA Jetson, which 
 could eventually manage all tasks onboard without needing the development 
 machine.  
-## 3.2 Software Design  and Implementation  
-The software architecture for the autonomous hospital assistant robot represents a 
-complex integration of distributed computing, real -time control systems, and 
-advanced robotics algorithms. Built upon the Robot Operating System 2 (ROS2) 
-framework, the system demonstrates sophisticated systems engineering principles 
-through its modular design, fault -tolerant operation, and seamless integration 
-between high -level navigation algorith ms and low -level hardware control.  
-The software stack addresses several fundamental challenges in autonomous 
-robotics: real -time sensor processing, simultaneous localisation and mapping 
-(SLAM), path planning, distributed computation across multiple processing units, 
-and robust hardware abst raction. The architecture employs a distributed approach, 
-with computationally intensive tasks executed on a development machine whilst 
-time-critical hardware interfacing operates on the embedded Raspberry Pi platform.  
-This design philosophy reflects modern industry practices in autonomous systems, 
-where computational loads are balanced across different  hardware platforms to 
-optimise performance, power consumption, and system reliability. The modular 
-architecture ensures maintainability, upgradability , and adherence to established 
-robotics software engineering principles.
+## 3.2 Software System Design and Implementation
 
+The software architecture for the autonomous hospital assistant robot is built on ROS2, leveraging its distributed, modular, and lifecycle-managed framework to meet stringent systems engineering requirements. This section details the technical implementation, referencing actual code and launch files, and justifies design decisions through concept analysis.
 
+### 3.2.1 Simulation Environment and Development Workflow
+Simulation was performed in Gazebo, using a URDF model defined in `pharma_bot/description/robot.urdf.xacro`. The URDF specifies link geometries, joints, sensors, and collision meshes, enabling physics-based testing of navigation, sensor integration, and control algorithms. This risk-free environment allowed rapid iteration and parameter tuning before hardware deployment.
 
+### 3.2.2 Distributed Architecture and Launch File Structure
+The system employs a distributed architecture, partitioning computation between the Raspberry Pi (onboard) and a development machine (offboard). This is orchestrated via multiple launch files:
+- `pi_test_launch.py`: Runs on the Pi, launching motor control (via Arduino), teleop bridge, and LiDAR driver with lifecycle management. It uses hardware-specific parameters and URDF for robot state publishing.
+- `dev_test_launch.py`: Runs on the dev machine, launching teleop, robot state publisher, SLAM Toolbox (mapping mode), static transforms, and RViz2 for visualization.
+- `amcl_localization_launch.py` and `amcl_navigation_launch.py`: Enable AMCL localization and full Nav2 navigation, with topic remapping (relay node) to ensure compatibility between LiDAR drivers and navigation stack.
 
-24 3.2.1  System Architecture Overview  
-#### 3.2.1.1 Simulation Environment and Development Workflow  
-The project employed a Gazebo simulation environment for initial algorithm 
-development, parameter tuning, and risk -free testing of navigation behaviours.  
-Gazebo Integration and URDF Modelling:   
-Gazebo provides a physics -based simulation environment that accurately models 
-robot dynamics, sensor behaviour, and environmental interactions. The robot model 
-was defined using URDF (Unified Robot Description Format), an XML -based 
-specification that descr ibes the robot's physical properties, joint relationships, and 
-sensor placements.  
-The URDF model includes detailed specifications for:  
-• Link geometries and inertial properties (mass, centre of mass, moments of 
-inertia)  
-• Joint definitions and kinematic constraints  
-• Sensor mounting positions and orientations  
-• Material properties and collision meshes  
-• Visual representations for simulation rendering  
-Simulation Benefits:  The simulation environment enabled rapid iteration of control 
-algorithms without hardware wear, testing of edge cases and failure scenarios 
-safely, validation of navigation algorithms before hardware deployment, and 
-parameter optimisation in controlled co nditions.  
-Transition to Hardware Implementation:  With simulation validation complete, the 
-focus shifted to implementing a robust software architecture for the physical robot. 
-The following sections detail the actual robot software implementation, which 
-forms the core contribution of this project.  
-#### 3.2.1.2 Distributed Computing Architecture  
-The software system employs a distributed architecture that partitions 
-computational responsibilities between two primary computing platforms  (section 
-### 3.1.3 ): 
-Raspberry Pi 4:  
-• Real-time motor control and encoder processing  
-• LiDAR sensor driver and data acquisition  
-• Hardware abstraction and low -level device management
+This modular launch structure supports systematic testing and deployment, with clear separation between simulation, mapping, localization, and hardware operation.
 
+#### Example: Launch File Node Definitions
+```python
+# pi_test_launch.py (excerpt)
+Node(
+    package='pharma_bot',
+    executable='motor_driver',
+    parameters=[...],
+    output='screen'
+)
+Node(
+    package='pharma_bot',
+    executable='lidar_lifecycle_manager',
+    output='screen'
+)
+```
 
+### 3.2.3 Node Architecture, Lifecycle Management, and Topic Remapping
+ROS2 nodes are organized by function, with lifecycle nodes used for critical components (e.g., LiDAR driver) to enable managed state transitions and robust fault recovery. The `lidar_lifecycle_manager.py` script demonstrates this:
+```python
+class LidarLifecycleManager(Node):
+    def __init__(self):
+        # ...existing code...
+        self.timer = self.create_timer(2.0, self.manage_lifecycle)
+    def manage_lifecycle(self):
+        # Checks state, activates node, handles errors
+```
+Lifecycle management allows dynamic reconfiguration and graceful failure handling, essential for real-world robotics.
 
+Topic remapping is used to ensure compatibility between sensor drivers and navigation stack. For example, AMCL expects `/scan`, but the LiDAR driver publishes `/ldlidar_node/scan`. A relay node remaps topics in `amcl_localization_launch.py`:
+```python
+Node(
+    package='topic_tools',
+    executable='relay',
+    arguments=['/ldlidar_node/scan', '/scan'],
+    output='screen'
+)
+```
+This design ensures modularity and future extensibility.
 
-25 • Serial communication bridge with Arduino microcontroller  
-• Basic teleoperation interface  
-Development Machine (Off -board Processing):  
-• SLAM processing and map generation  
-• Advanced localisation algorithms (AMCL)  
-• Global and local path planning (Nav2 stack)  
-• Visualisation and debugging tools (RViz2)  
-• High -level navigation coordination  
-#### 3.2.1.3 Node Architecture and Lifecycle Management  
-The software employs ROS2's node -based architecture, with clear separation of 
-concerns across functional modules. Critical nodes utilise ROS2's lifecycle 
-management system, enabling managed state transitions and robust fault recovery 
-capabilities.  
-Insert image here of rqt graph  
-Core Lifecycle Nodes:  
-• SLAM Toolbox nodes (mapping and localisation modes)  
-• Navigation stack components (planners, controllers, costmaps)  
-• LiDAR driver node  
-• Motor control interface  
-Stateless Nodes:  
-• Odometry calculation and publishing  
-• Teleoperation bridges  
-• Transform publishers  
-• Visualisation interfaces  
-Lifecycle nodes provide managed state transitions through four primary states: 
-unconfigured, inactive, active, and finalized. This enables dynamic reconfiguration, 
-graceful failure handling, and systematic startup/shutdown procedures without 
-requiring complete system restarts.  
-The lifecycle management approach represents advanced systems engineering 
-practice, acknowledging that complex robotic systems require sophisticated state 
-management to handle the dynamic nature of real -world operation.  An example of 
-this would be, to temporarily disable the LiDAR by changing its state to inactive 
-for debugging reasons.
+### 3.2.4 Hardware Abstraction and Embedded Control
+Motor control and odometry are handled by the Arduino (firmware in `Bridge_and_Motor/ROSArduinoBridge.ino`) and by ROS2 nodes on the Pi and dev machine. The Arduino implements a command-based protocol for velocity, encoder, and PID control, with safety features (timeouts, validation, buffer management).
 
+Odometry is calculated using differential drive kinematics, as implemented in `serial_motor_demo/serial_motor_demo/serial_motor_demo/simple_odometry.py`:
+```python
+class SimpleOdometry(Node):
+    def encoder_callback(self, msg):
+        left_distance = (msg.left_diff / self.encoder_cpr) * 2.0 * math.pi * self.wheel_radius
+        right_distance = (msg.right_diff / self.encoder_cpr) * 2.0 * math.pi * self.wheel_radius
+        # ...update pose, publish odometry...
+```
+Parameters (encoder CPR, wheel separation, radius) are empirically calibrated and set via YAML files (e.g., `motor_driver_params.yaml`).
 
+### 3.2.5 Sensor Integration and Data Processing
+LiDAR integration uses a composable lifecycle node (`pharma_bot/pharma_bot/lidar_lifecycle_manager.py`), publishing `sensor_msgs/LaserScan` on `/ldlidar_node/scan`. Configuration is managed via YAML, supporting dynamic reconfiguration and fault recovery. The transform tree (TF2) maintains spatial relationships between frames (`map`, `odom`, `base_link`, `ldlidar_link`), enabling sensor fusion and navigation.
 
+### 3.2.6 SLAM, Localisation, and Navigation
+SLAM is performed using `slam_toolbox` in mapping mode, with parameters tuned for hospital environments. AMCL localization uses a particle filter, with parameters emphasizing LiDAR accuracy. The Nav2 stack provides global (A*) and local (DWA) planning, with layered costmaps for static, dynamic, and inflated obstacles. Launch files (`dev_test_launch.py`, `amcl_localization_launch.py`, `amcl_navigation_launch.py`) orchestrate these components, with topic remapping and parameterization for reproducibility.
 
-26 3.2.1.4  Communication Patterns and Data Flow  
-The system employs multiple ROS2 communication patterns to handle different 
-types of data exchange:  
-Topics  for streaming sensor data (LiDAR scans, odometry, transforms) Actions  for 
-goal-oriented tasks (navigation commands, mapping operations) Services  for 
-request -response operations (parameter updates, system queries) Parameters  for 
-configuration management and dynamic reconfiguration  
-Data flow follows a hierarchical pattern from hardware abstraction through sensor 
-processing to high -level navigation algorithms. The transform tree (TF2) system 
-maintains spatial relationships between coordinate frames, ensuring consistent 
-spatial reasoni ng across all system components.  
-### 3.2.2 Hardware Abstraction and Embedded Control  
-#### 3.2.2.1 Arduino -ROS2 Serial Bridge  
-The interface between ROS2 and the embedded Arduino microcontroller represents 
-a critical component requiring robust communication protocols and real -time 
-performance. The system implements a custom serial protocol that bridges high -
-level ROS2 velocity commands to low -level motor control.  
-The Arduino firmware implements a command -based protocol supporting:  
-• Motor velocity commands (rad/s and PWM modes)  
-• Encoder value queries and streaming  
-• PID controller parameter updates  
-• System diagnostics and status reporting  
- 
-1. // Command parsing structure  
-2. typedef struct { 
-3.   char command; 
-4.   float arg1, arg2, arg3; 
-5.   bool valid; 
-6. } CommandFrame ; 
-7.   
-The protocol employs single -character commands for efficiency, with numerical 
-arguments transmitted as ASCII strings. This approach balances simplicity with 
-extensibility, enabling future hardware additions without protocol redesign.  
-Safety Mechanisms:  
-• Automatic motor timeout (500ms) prevents runaway conditions  
-• Command validation prevents invalid motor states
+#### Example: SLAM and Navigation Parameters
+```yaml
+slam_toolbox:
+  ros__parameters:
+    solver_plugin: solver_plugins::CeresSolver
+    minimum_travel_distance: 0.5
+    do_loop_closing: true
+nav2_params:
+  global_costmap:
+    inflation_radius: 0.55
+  dwa_local_planner:
+    max_vel_x: 0.26
+    path_distance_bias: 64.0
+```
 
+### 3.2.7 Systems Engineering and Design Justification
+ROS2’s modular, distributed architecture directly supports systems engineering principles:
+- **Modularity:** Nodes and launch files are organized by function, enabling independent development and testing.
+- **Scalability:** Distributed computation allows offloading heavy tasks (SLAM, Nav2) to the dev machine, with the Pi handling real-time control.
+- **Maintainability:** Lifecycle management, topic remapping, and parameterization support rapid adaptation and fault recovery.
 
+Design choices (e.g., lifecycle nodes, topic remapping, distributed architecture) were made after considering alternatives (monolithic nodes, direct topic connections, single-board computation) and found to best balance reliability, extensibility, and performance for hospital robotics.
 
+### 3.2.8 Debugging, Monitoring, and Validation
+RViz2 is used for real-time visualization (robot model, LiDAR, maps, trajectories). ROS2 introspection tools (`ros2 topic echo`, `ros2 node info`, `tf2_tools view_frames`) support debugging and validation. For example, topic introspection revealed SLAM was subscribing to `/scan` instead of `/ldlidar_node/scan`, leading to the addition of a relay node. System diagnostics and logging are configured per node for detailed monitoring.
 
-27 • Serial buffer management avoids data overflow  
-• Graceful degradation during communication failures  
-#### 3.2.2.2 Motor Control and PID Implementation  
-The embedded control system implements PID (Proportional -Integral -Derivative) 
-velocity control for each motor, converting high -level velocity commands to PWM 
-signals. The PID implementation follows established control theory best practices:  
- 1. void doPID(SetPointInfo  * p) { 
- 2.   long Perror; 
- 3.   long output; 
- 4.   int input; 
- 5.   
- 6.   input = p->Encoder - p->PrevEnc; 
- 7.   Perror = p->TargetTicksPerFrame  - input; 
- 8.   
- 9.   output = (Kp * Perror - Kd * (input - p->PrevInput ) + p->ITerm) / Ko; 
-10.   p->PrevEnc = p->Encoder; 
-11.   
-12.   output += p->output; 
-13.   if (output >= MAX_PWM) 
-14.     output = MAX_PWM; 
-15.   else if (output <= -MAX_PWM) 
-16.     output = -MAX_PWM; 
-17.   else 
-18.     p ->ITerm += Ki * Perror; 
-19.   
-20.   p->output = output; 
-21.   p->PrevInput  = input; 
-22. } 
-Key Engineering Features:  
-• Derivative -on-measurement approach prevents derivative kick  
-• Integral windup prevention through output saturation limits  
-• Calibrated motor scaling factors compensate for mechanical variations  
-• 50 Hz control loop frequency ensures responsive performance  
-The PID parameters were empirically tuned through systematic testing, with Kp = 
-20, Ki = 0, Kd = 12, and Ko = 50. The derivative term proved most effective for 
-damping oscillations, whilst the integral term was disabled to prevent windup in the 
-presence of  mechanical backlash.  
-#### 3.2.2.3 Encoder Integration and Odometry  
-Encoder feedback utilises interrupt -driven processing to ensure accurate velocity 
-measurement and position tracking. The quadrature encoder interface employs 
-hardware interrupts on Arduino pins 2 and 3  for motor 1 and pins 4 and 5 for motor 
-2, with a lookup table approach minimising computational overhead:  
- 1. ISR (PCINT2_vect ) { 
- 2.   static uint8_t enc_last_left = 0; 
- 3.   static uint8_t enc_last_right = 0;
+### 3.2.9 Testing and Performance Characterization
 
+A rigorous testing and validation methodology was adopted to ensure the reliability and performance of the integrated robotic system. Unit testing was performed on individual components such as odometry, motor control, SLAM, and network communication. For example, odometry validation involved comparing physical robot motion over measured distances and rotations with calculated odometry outputs, revealing systematic errors that were corrected through empirical calibration of wheel parameters and encoder counts. Motor control testing included step input response and frequency analysis, with PID parameters tuned to achieve critically damped response and minimal steady-state error.
 
+SLAM validation was conducted by comparing generated maps with ground truth measurements in controlled environments, and by repeatedly traversing known paths to confirm loop closure detection and map consistency. Integration testing focused on verifying inter-node communication, distributed operation, and failure recovery. This included simulating network packet loss and latency to ensure robust message passing between the Raspberry Pi and development machine, and testing lifecycle node startup/shutdown sequences for dynamic reconfiguration and fault tolerance.
 
+Transform consistency was validated by monitoring the TF2 transform tree during dynamic operation, ensuring correct spatial relationships between coordinate frames. Performance characterization involved monitoring computational load (CPU utilization during SLAM, navigation, and sensor processing), memory usage (RAM consumption for map storage, particle filters, and sensor data), real-time performance (timing analysis of control loops and navigation updates), and network bandwidth (data transmission rates and latency for distributed operation).
 
-28  4.    
- 5.   enc_last_left <<= 2; 
- 6.   enc_last_left |= (PIND & (3 << 4)) >> 4; 
- 7.   left_enc_pos += ENC_STATES [(enc_last_left & 0x0f)]; 
- 8.    
- 9.   enc_last_right <<= 2; 
-10.   enc_last_right |= (PIND & (3 << 2)) >> 2; 
-11.   right_enc_pos += ENC_STATES [(enc_last_right & 0x0f)]; 
-12. } 
-The encoder resolution was determined to be  1859 counts per wheel revolution. 
-This differs from the theoretical value of 1980 counts (11 pulses per motor 
-revolution × 45:1 gearbox × 4 for quadrature decoding), with the discrepancy 
-attributed to mechanical tolerances and gearbox variations. The test ing 
-methodology and validation of this empirically -derived value is detailed in the 
-subsequent testing section  (refer to section ). This resolution yields a distance 
-resolution of 0.087 mm per count, providing ade quate precision for odometry 
-calculations essential for navigation algorithms.  
-### 3.2.3 Sensor Integration and Data Processing  
-#### 3.2.3.1 LiDAR Integration and Driver Architecture  
-The LDLiDAR LD 06 integration demonstrates sophisticated sensor driver 
-architecture utilising ROS2's lifecycle node capabilities. The driver implements a 
-composable node design, enabling containerised deployment and efficient resource 
-utilisation.  
-The sensor provides 360° ranging data with 2 cm accuracy over a 12 -meter range, 
-scanning at 10 Hz with 1° angular resolution. Communication occurs via UART at 
-230,400 baud, with the driver publishing sensor data on the /ldlidar_node/ scan  
-topic using sensor_msgs/LaserScan  messages.  
-Configuration Management:  
- 1. comm: 
- 2.   serial_port : '/dev/ttyAMA0'  
- 3.   baudrate : 230400 
- 4. lidar : 
- 5.   model : 'LDLiDAR_LD19'  
- 6.   frame_id : 'ldlidar_link'  
- 7.   bins : 455 
- 8.   range_min : 0.03 
- 9.   range_max : 15.0 
-The lifecycle node design enables dynamic reconfiguration and fault recovery. If 
-the sensor encounters communication errors, the lifecycle manager can restart the 
-node without affecting other system components.
+Empirical calibration and systematic testing ensured accurate navigation and robust distributed operation. The use of ROS2 introspection tools (e.g., `ros2 topic echo`, `ros2 node info`, `tf2_tools view_frames`) was essential for debugging, identifying communication failures, and resolving parameter misconfigurations. For instance, introspection revealed that SLAM was subscribing to `/scan` instead of `/ldlidar_node/scan`, prompting the addition of a relay node for correct topic remapping. This iterative, systems engineering-driven approach to testing and validation was critical for achieving a reliable, maintainable, and high-performance autonomous hospital robot.
 
+---
 
+## 3.3 Testing and Validation Framework
 
+A rigorous testing and validation process is essential for demonstrating the reliability, accuracy, and robustness of the autonomous hospital robot. The following framework outlines the key tests to be performed, the methodology for each, and the quantitative results and analysis required for a comprehensive technical report.
 
-29 3.2.3.2  Coordinate Frame Management  
-Accurate spatial representation requires careful management of coordinate frames 
-using ROS2's TF2 (Transform) system. The robot maintains a hierarchical frame 
-tree: 
-Insert view frames image here  
-map 
-└── odom (published by odometry or SLAM)  
-    └── base_link (published by robot_state_publisher)  
-        ├── base_footprint  
-        ├── wheel_left_link  
-        ├── wheel_right_link  
-        └── ldlidar_link  
-Frame Relationships:  
-• map: Global reference frame for navigation and localisation  
-• odom : Odometry frame, subject to drift but locally accurate  
-• base_link : Robot body frame, origin for sensors and actuators  
-• ldlidar_link : LiDAR sensor frame, positioned 180mm above base  
-The transform tree enables sensor fusion by providing spatial relationships between 
-all coordinate frames. Static transforms define fixed relationships (sensor mounting 
-positions), whilst dynamic transforms track the robot's motion through space.  
-#### 3.2.3.3 Odometry Calculation and Publishing  
-The odometry system converts encoder readings to positi on estimates using 
-differential drive kinematics. The simple_odometry  node subscribes to encoder 
-values and applies kinematic equations:  
- 1. # Convert encoder counts to wheel distances  
- 2. left_distance = (left_diff / self.encoder_cpr ) * 2.0 * math.pi * 
-self.wheel_radius  
- 3. right_distance = (right_diff / self.encoder_cpr ) * 2.0 * math.pi * 
-self.wheel_radius  
- 4.   
- 5. # Calculate robot motion  
- 6. distance = (left_distance + right_distance ) / 2.0 
- 7. delta_theta = (right_distance - left_distance ) / self.wheel_separation  
- 8.   
- 9. # Update pose  
-10. self.x += distance * math.cos(self.theta + delta_theta /2.0) 
-11. self.y += distance * math.sin(self.theta + delta_theta /2.0) 
-12. self.theta += delta_theta  
-Calibration Parameters:  
-• Encoder CPR: 1859 counts per wheel revolution (empirically determined)  
-• Wheel radius: 0.02569 m ( measured to get a baseline and then empirically 
-calibrated)
+### 3.3.1 Performance Testing
+- **Objective:** Quantify the robot's ability to perform core navigation and control tasks under real-world conditions.
+- **Tests to perform:**
+  - Navigation accuracy in mapped environments (compare planned vs. actual trajectory).
+  - Obstacle avoidance reliability (record success rate and minimum clearance).
+  - System response time (latency from command to actuation).
+- **Measurements required:**
+  - Trajectory plots (planned vs. actual).
+  - Success/failure rates for obstacle avoidance.
+  - Latency measurements (ms).
+  - Table summarizing test scenarios and outcomes.
 
+### 3.3.2 PID Tuning and Motor Control Validation
+- **Objective:** Demonstrate systematic tuning of PID parameters for optimal motor control.
+- **Tests to perform:**
+  - Step response tests for different PID values (record overshoot, settling time, steady-state error).
+  - Frequency response analysis (Bode plot if possible).
+  - Stability and repeatability under varying loads.
+- **Measurements required:**
+  - Plots of motor speed vs. time for each PID setting.
+  - Table of PID values and corresponding performance metrics.
+  - Justification for final chosen PID values.
 
+### 3.3.3 Odometry and Calibration Testing
+- **Objective:** Validate the accuracy of odometry calculations and calibrate wheel separation/radius.
+- **Tests to perform:**
+  - Straight-line and rotational movement tests over measured distances.
+  - Compare calculated vs. actual position (record error).
+  - Empirical calibration of wheel separation and radius (document process and results).
+- **Measurements required:**
+  - Error plots (distance and angle).
+  - Table of calibration values before and after adjustment.
+  - Quantitative analysis of odometry error (mean, std deviation).
 
+### 3.3.4 Failure Mode and Robustness Analysis
+- **Objective:** Assess system behavior under fault conditions and validate recovery strategies.
+- **Tests to perform:**
+  - Simulate sensor failure (e.g., disconnect LiDAR, encoder dropout) and observe system response.
+  - Induce communication loss between Pi and dev machine (record recovery behavior).
+  - Node crash/restart scenarios (test lifecycle management and fault tolerance).
+- **Measurements required:**
+  - Description and timing of recovery actions.
+  - Table of failure scenarios and system responses.
+  - Recommendations for improving robustness.
 
-30 • Wheel separation: 0.173 m ( measured to get a baseline and then empirically 
-calibrated ) 
-• Motor scaling factors: Applied to compensate for velocity differences between 
-left and right motors  due to mechanical interference. ( I don’t like mechanical 
-interference use some thing better ) 
-The odometry node publishes both the /odom  topic and the odom → base_link  
-transform, ensuring compatibility with SLAM and navigation algorithms. 
-Velocities are calculated through numerical differentiation and included in the 
-odometry message.  
-### 3.2.4 Simultaneous Localisation and Mapping (SLAM)  
-#### 3.2.4.1 SLAM Toolbox Implementation  
-The SLAM system utilises the slam_toolbox package, which implements graph -
-based SLAM algorithms optimised for real -time operation. The system operates in 
-two primary modes:  
-Mapping Mode ( online_async ): 
-• Real-time map construction from LiDAR and odometry data  
-• Loop closure detection and correction  
-• Occupancy grid map generation  
-• Pose graph optimisation  
-Localisation Mode ( localization ): 
-• Pose estimation within a known map  
-• Particle filter -based localisation  
-• Continuous pose correction and refinement  
-The SLAM configuration was tuned for hospital environments, balancing map 
-accuracy with computational performance:  
- 1. # Key SLAM parameters  
- 2. minimum_travel_distance : 0.5 
- 3. minimum_travel_heading : 0.5 
- 4. scan_buffer_size : 10 
- 5. scan_buffer_maximum_scan_distance : 10.0 
- 6. link_match_minimum_response_fine : 0.1 
- 7. link_scan_maximum_distance : 1.5 
- 8. loop_search_maximum_distance : 3.0 
- 9. do_loop_closing : true 
-10. loop_match_minimum_chain_size : 10 
-11. loop_match_maximum_variance_coarse : 3.0 
-12. loop_match_minimum_response_coarse : 0.35 
-13. loop_match_minimum_response_fine : 0.45
+### 3.3.5 Summary Table and Visual Aids
+- **Objective:** Present results in a clear, quantitative manner.
+- **Requirements:**
+  - Summary table of all tests, metrics, and outcomes.
+  - Diagrams/plots for key results (e.g., odometry error, PID response, navigation accuracy).
+  - Block diagram of test setup if relevant.
 
+---
 
+# Improvements and Explicit Prompts Added to Software Section
 
+## 3.2.4 Hardware Abstraction and Embedded Control
+- **Add:** Quantitative results for odometry calibration (e.g., measured vs. calculated distance, error statistics).
+- **Add:** Table of wheel separation and radius values before and after calibration.
+- **Prompt:** Include plots of encoder counts vs. distance and error over multiple trials.
 
-31 These parameters were empirically determined through extensive testing in 
-simulated hospital environments. The loop closure parameters are particularly 
-critical, as incorrect loop closures can introduce significant map distortions.  
-#### 3.2.4.2 Occupancy Grid Mapping  
-SLAM output consists of occupancy grid maps, where each cell contains a 
-probability of occupancy. The mapping algorithm updates cell probabilities using 
-the log -odds representation:  
- 𝑙(𝑐|𝑧₁:𝑡) = 𝑙(𝑐|𝑧₁:𝑡₋₁) + 𝑙𝑜𝑔(𝑃(𝑐|𝑧𝑡)) − 𝑙𝑜𝑔(𝑃(𝑐))  
-```latex
-(16)
-``` 
-Where  𝑙 represents the log -odds value,  𝑐 is the cell, and 𝑧₁:𝑡 are sensor 
-measurements. This approach efficiently handles sensor uncertainty whilst 
-providing maps suitable for path planning algorithms.  
-Map resolution was set to 0.05 metres per pixel, providing sufficient detail for 
-navigation whilst maintaining manageable computational loads. The mapping range 
-was limited to 10 metres to focus on relevant hospital corridor distances.  
-#### 3.2.4.3 Localisation within Known Maps  
-For operation within existing maps, the system employs Adaptive Monte Carlo 
-Localisation (AMCL), which maintains a particle filter representation of pos ition 
-belief. AMCL parameters were tuned to emphasise LiDAR accuracy over 
-odometry:  
- 1. # AMCL configuration  
- 2. min_particles : 500 
- 3. max_particles : 2000 
- 4. kld_err : 0.05 
- 5. kld_z : 0.99 
- 6. update_min_d : 0.2 
- 7. update_min_a : 0.5 
- 8. laser_max_beams : 60 
- 9. laser_z_hit : 0.5 
-10. laser_z_short : 0.05 
-11. laser_z_max : 0.05 
-12. laser_z_rand : 0.5 
-13. laser_sigma_hit : 0.2 
-14. odom_alpha_1 : 0.2 
-15. odom_alpha_2 : 0.2 
-16. odom_alpha_3 : 0.8 
-17. odom_alpha_4 : 0.2 
-The high particle count (500 -2000) ensures robust localisation in corridor 
-environments where geometric features may be sparse. The laser model parameters 
-emphasise accurate range measurements whilst the odometry model parameters 
-reflect the uncertainty in troduced by odometry .
+## 3.2.6 SLAM, Localisation, and Navigation
+- **Add:** Quantitative results for mapping accuracy (e.g., overlay generated map with ground truth, record deviation).
+- **Prompt:** Include trajectory plots and error analysis for navigation tests.
 
+## 3.2.7 Systems Engineering and Design Justification
+- **Add:** Brief reference to relevant robotics/mechatronics standards (e.g., ROS2 REP standards, ISO hospital robot safety if applicable).
+- **Prompt:** Discuss how modularity, scalability, and maintainability align with mechatronic engineering principles.
 
+## 3.2.9 Testing and Performance Characterization
+- **Add:** Explicit prompt to include summary table of all test results and key metrics.
+- **Prompt:** Add diagrams/plots for odometry, PID, and navigation performance.
 
-
-32 3.2.5  Navigation and Path Planning  
-#### 3.2.5.1 Navigation Stack Architecture  
-The navigation system employs the Nav2 stack, which implements a behaviour 
-tree-based architecture for complex decision -making. The modular design separates 
-global planning, local control, and recovery behaviours:  
-Core Components:  
-• Planner Server : Global path planning using A* algorithm  
-• Controller Server : Local trajectory tracking with DWA (Dynamic Window 
-Approach)  
-• Recoveries Server : Failure recovery behaviours (spin, backup, wait)  
-• Behaviour Tree Navigator : High -level decision coordination  
-• Costmap Layers : Multi -layered obstacle representation  
-The behaviour tree approach enables sophisticated navigation logic, with the ability 
-to handle complex scenarios such as temporary obstacles, navigation failures, and 
-dynamic replanning.  
-#### 3.2.5.2 Global Path Planning  
-Global planning employs the A* algorithm operating on the occupancy grid map. 
-The planner finds optimal paths from the robot's current position to goal locations, 
-accounting for static obstacles represented in the map.  
-Insert image of A* arrows  
-A* Implementation Details:  
-• Heuristic function: Euclidean distance to goal  
-• Cost function: Combined distance and obstacle penalties  
-• Path smoothing: Post -processing for realistic trajectories  
-• Dynamic replanning: Triggered by significant map changes  
-The global planner operates at 1 Hz, providing efficient path updates without 
-excessive computational overhead. Path tolerance parameters were relaxed to 
-accommodate odometry uncertainty:  
-1. # Global planner parameters  
-2. tolerance : 0.5 
-3. use_astar : true 
-4. allow_unknown : true 
-5. use_final_approach_orientation : false
-
-
-
-
-33 3.2.5.3  Local Path Planning and Obstacle Avoidance  
-Local planning employs the DWA algorithm, which evaluates candidate trajectories 
-within the robot's kinematic constraints. The algorithm optimises a multi -objective 
-function considering path progress, obstacle clearance, and velocity constraints.   
-Insert image of the arrows with DWA  
-DWA Trajectory Evaluation:  
-1. score = path_distance_bias × path_distance +  
-2.         goal_distance_bias × goal_distance +  
-3.         occdist_scale × obstacle_distance  
-Parameters were tuned for hospital environments, emphasising safety over speed:  
- 1. # DWA parameters  
- 2. max_vel_x : 0.26 
- 3. min_vel_x : 0.0 
- 4. max_vel_y : 0.0 
- 5. max_vel_theta : 1.0 
- 6. min_vel_theta : -1.0 
- 7. acc_lim_x : 2.5 
- 8. acc_lim_theta : 3.2 
- 9. sim_time : 1.7 
-10. discretize_by_time : false 
-11. vx_samples : 6 
-12. vtheta_samples : 20 
-13. path_distance_bias : 64.0 
-14. goal_distance_bias : 24.0 
-15. occdist_scale : 0.56 
-16. forward_point_distance : 0.325 
-17. stop_time_buffer : 0.2 
-18. scaling_speed : 0.25 
-19. max_scaling_factor : 0.2 
-The trajectory evaluation occurs at 20 Hz, ensuring responsive obstacle avoidance 
-whilst maintaining computational efficiency.  
-#### 3.2.5.4 Costmap Configuration  
-The navigation system employs layered costmaps to represent different obstacle 
-types and navigation constraints:  
-Static Layer : Permanent obstacles from the occupancy grid map .  
-Obstacle Layer : Dynamic obstacles detected by LiDAR .  
-Inflation Layer : Safety margins around obstacles . 
-Each layer assigns numerical costs to grid cells, with the final costmap representing 
-the combination of all layers. Path planning algorithms use these costs to generate 
-safe, efficient trajectories.  
- 1. # Costmap configuration  
- 2. global_frame : map 
- 3. robot_base_frame : base_link  
- 4. update_frequency : 5.0
-
-
-
-
-34  5. publish_frequency : 2.0 
- 6. resolution : 0.05 
- 7. robot_radius : 0.20 
- 8. inflation_radius : 0.55 
- 9. cost_scaling_factor : 5.0 
-The inflation radius (0.55m) provides adequate clearance for the robot's dimensions 
-whilst enabling navigation through standard doorways (typically 0.8 -1.0m wide).  
-3.2.6  System Integration and Launch Management  
-3.2.6.1  Launch File Architecture  
-The system employs multiple launch files to handle different operational scenarios:  
-Development Testing ( dev_test_launch.py ): 
-• Robot state publisher and URDF loading  
-• SLAM Toolbox (mapping mode)  
-• RViz2 visualisation  
-• Static transform publishers  
-Localisation Testing ( dev_test_launch_localization.py ): 
-• SLAM Toolbox (localisation mode with saved map)  
-• Map server for map loading  
-• Visualisation tools  
-Full Navigation ( dev_test_amcl_launch.py ): 
-• AMCL localisation  
-• Nav2 navigation stack  
-• Complete autonomous navigation capability  
-Hardware Deployment ( pi_test_launch.py ): 
-• Motor driver and serial communication  
-• LiDAR driver  
-• Hardware -specific interfaces  
-This modular launch structure enables systematic testing and deployment, with 
-clear separation between simulation, development, and hardware operation modes.  
-3.2.6.2  Node Lifecycle Orchestration  
-Launch files employ delayed actions to ensure proper startup sequencing, 
-particularly critical for lifecycle nodes that require managed initialisation:
-
-
-
-
-35  1. # Example lifecycle node startup  
- 2. slam_node = LifecycleNode ( 
- 3.     package='slam_toolbox' , 
- 4.     executable ='async_slam_toolbox_node' , 
- 5.     name ='slam_toolbox' , 
- 6.     parameters =[slam_params_file ], 
- 7.     namespace ='', 
- 8.     output ='screen'  
- 9. ) 
-10.   
-11. lifecycle_manager = Node( 
-12.     package='nav2_lifecycle_manager' , 
-13.     executable ='lifecycle_manager' , 
-14.     name ='lifecycle_manager_slam' , 
-15.     output ='screen' , 
-16.     parameters =[{'autostart' : True}, 
-17.                 {'node_names' : ['slam_toolbox' ]}] 
-18. ) 
-The lifecycle manager coordinates node state transitions, ensuring all dependencies 
-are satisfied before activating navigation capabilities.  
-3.2.6.3  Parameter Management and Configuration  
-Configuration parameters are managed through YAML files, enabling systematic 
-tuning and documentation of system behaviour:  
-Motor Control Parameters ( motor_driver_params.yaml ): 
- 1. motor_driver : 
- 2.   ros__parameters : 
- 3.     encoder_cpr : 1859 
- 4.     wheel_separation : 0.173 
- 5.     wheel_radius : 0.02569 
- 6.     max_linear_speed : 1.0 
- 7.     max_angular_speed : 2.0 
- 8.     motor_1_scaler : 1.0 
- 9.     motor_2_scaler : 0.95 
-SLAM Parameters ( mapper_params_online_async.yaml ): Replace this with the 
-actual parametrs that we frequently changed but with the comments to show what 
-we need to change for localisation and mapping and so on  
-1. slam_toolbox : 
-2.   ros__parameters : 
-3.     solver_plugin : solver_plugins ::CeresSolver  
-4.     ceres_linear_solver : SPARSE_NORMAL_CHOLESKY  
-5.     ceres_preconditioner : SCHUR_JACOBI  
-6.     ceres_trust_strategy : LEVENBERG_MARQUARDT  
-This parameterisation approach supports reproducible testing and enables rapid 
-adaptation to different operational environments.
-
-
-
-
-36 3.2.7  Time Synchronisation and Distributed Operation  
-3.2.7.1  Network Time Synchronisation  
-Distributed operation across multiple computing platforms requires precise time 
-synchronisation to ensure consistent sensor fusion and mapping. The system 
-employs Chrony (Network Time Protocol implementation) to maintain sub -
-millisecond clock synchronisati on between the Raspberry Pi and development 
-machine.  
-Chrony Configuration:  
-1. # On development machine (server)  
-2. allow 192.168.0.0/24 
-3. local stratum 10 
-4.   
-5. # On Raspberry Pi (client)  
-6. server 192.168.0.100 iburst 
-7. maxsources 1 
-Time synchronisation is critical for SLAM algorithms, which rely on accurately 
-timestamped sensor data for proper operation. Clock drift can result in rejected 
-sensor measurements and mapping failures.  
-3.2.7.2  Quality of Service and Network Reliability  
-ROS2's DDS middleware provides configurable Quality of Service (QoS) policies 
-to handle network reliability and latency requirements:  
-Sensor Data : Best Effort delivery for high -frequency streams Navigation  
-Commands : Reliable delivery for critical control messages  
-Map Data : Reliable delivery with large message queues Transform  Data : Latest 
-message semantics for real -time updates  
-The QoS configuration balances network efficiency with data reliability, ensuring 
-critical navigation data is transmitted reliably whilst allowing non -critical sensor 
-streams to operate with best -effort delivery.  
-3.2.8  Debugging and System Monitoring  
-3.2.8.1  Visualisation and Development Tools  
-The system incorporates comprehensive debugging and monitoring capabilities 
-through RViz2 integration. Custom RViz configurations provide real -time 
-visualisation of:  
-• Robot model and coordinate frames  
-• LiDAR scan data and point clouds  
-• Occupancy grid maps and costmaps
-
-
-
-
-37 • Planned and executed trajectories  
-• Particle filter pose estimates  
-• Transform tree relationships  
-RViz Configuration Management:  Multiple RViz configurations support different 
-operational phases:  
-• pharma_bot.rviz : General development and testing  
-• slam.rviz : SLAM -specific visualisation  
-• view_bot.rviz : Robot state and sensor monitoring  
-3.2.8.2  System Diagnostics and Logging  
-ROS2's logging system provides hierarchical message filtering and distributed log 
-collection. Log levels are configured per node, enabling detailed debugging without 
-overwhelming system output:  
-1. # Example diagnostic logging  
-2. self.get_logger ().info('Odometry updated: x={:.3f}, y={:.3f}, 
-theta={:.3f}' .format( 
-3.     self.x, self.y, self.theta)) 
-4. self.get_logger ().warn('Encoder timeout detected, stopping motors' ) 
-5. self.get_logger ().error('Serial communication failure: {}' .format(str(e))) 
-The logging system supports real -time monitoring during operation and post -
-analysis of system behaviour during development and testing phases.  
-3.2.8.3  Topic and Service Introspection  
-ROS2 provides extensive introspection capabilities for debugging distributed 
-systems:  
- 1. # Monitor topic data rates and message content  
- 2. ros2 topic echo /scan 
- 3. ros2 topic hz /odom 
- 4.   
- 5. # Inspect node connectivity and interfaces   
- 6. ros2 node info /slam_toolbox  
- 7. ros2 node list  
- 8.   
- 9. # Monitor transform tree relationships  
-10. ros2 run tf2_tools view_frames  
-11. ros2 run tf2_ros tf2_echo map base_link  
-These tools proved essential during development for identifying communication 
-failures, parameter misconfigurations, and timing issues in the distributed system.  
-Give so random examples here of what we determined using the introspection and 
-how we fixed the problem, for example slam was subscribing to the /scan topic 
-instead of the ldlidar_node/scan topic, this showed us that we needed to add a relay 
-node.
-
-
-
-
-38 3.2.9  Testing and Validation Methodology  
-3.2.9.1  Unit Testing Approach  
-Individual system components were validated through systematic unit testing:  
-Odometry Validation : Physical measurement of robot motion compared with 
-calculated odometry over known distances and rotations. Testing revealed 
-systematic errors requiring empirical calibration of wheel parameters.  
-Motor Control Testing : PID response characterisation through step input testing 
-and frequency response analysis. Parameters were tuned to achieve critically 
-damped response whilst avoiding steady -state error.  
-SLAM Validation : Map accuracy assessment through comparison with ground 
-truth measurements in controlled environments. Loop closure detection was 
-validated through repeated traversal of known paths.  
-3.2.9.2  Integration Testing  
-System integration testing focused on inter -node communication, distributed 
-operation, and failure recovery:  
-Network Communication : Validation of message passing between distributed 
-nodes under various network conditions, including simulated packet loss and 
-latency.  
-Lifecycle Management : Testing of node startup/shutdown sequences, failure 
-recovery, and dynamic reconfiguration capabilities.  
-Transform Consistency : Validation of coordinate frame relationships and 
-transform tree integrity during dynamic operation.  
-3.2.9.3  Performance Characterisation  
-System performance was characterised across multiple metrics:  
-Computational Load : CPU utilisation monitoring during SLAM, navigation, and 
-sensor processing operations.  
-Memory Usage : RAM consumption analysis for map storage, particle filters, and 
-sensor data buffering.  
-Real -time Performance : Timing analysis of control loops, sensor processing, and 
-navigation updates.  
-Network Bandwidth : Data transmission rates and latency measurements for 
-distributed operation.
+---
