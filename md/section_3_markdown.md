@@ -507,3 +507,21 @@ A rigorous testing and validation process is essential for demonstrating the rel
 - **Prompt:** Add diagrams/plots for odometry, PID, and navigation performance.
 
 ---
+
+### PID Tuning and Motor Control Validation
+
+To validate the PID tuning and motor symmetry, a step response test was performed using teleop_twist_keyboard to command the robot to move forward and backward. The default velocity command was used, resulting in a target speed close to 13 rad/s, as observed in the motor speed response plot below.
+
+The following figure shows the recorded left and right motor speeds in response to step inputs:
+
+![PID Step Response (Left & Right Motors)](pid_step_response.png)
+
+**Analysis:**
+- Both motors respond rapidly to step inputs, reaching the target speed with minimal delay and little to no overshoot.
+- The steady-state speed for both motors closely matches the commanded value, with negligible error.
+- The left and right motor speed traces are nearly identical, confirming effective wheel bias correction and symmetric PID tuning.
+- The system is robust to both positive and negative step inputs, with similar performance in both directions.
+- The traces are smooth, with minimal noise or oscillation, indicating good stability and filtering in the control loop.
+
+**Conclusion:**
+This step response demonstrates that the PID parameters are tuned well enough for reliable motor control. The system achieves fast, stable, and symmetric response for both motors, validating the control architecture for further navigation and integration testing.
