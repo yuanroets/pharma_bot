@@ -5,23 +5,49 @@ This document provides a comprehensive breakdown of all nodes, files, and relati
 ---
 
 ## Sim Launch
-### Terminal 1: Launch simulation environment with relay node
+### Terminal 1: Launch simulation environment
 **Command:**
 ```
 ros2 launch pharma_bot launch_sim.launch.py
 ```
 **Nodes/Files/Programs Launched:**
-- `gazebo` (simulator): Simulates robot and environment.
-- `relay_node` (pharma_bot): Relays topics between Gazebo and ROS2 ecosystem.
-- `robot_state_publisher` (pharma_bot): Publishes robot transforms from URDF.
-- `joint_state_publisher` (pharma_bot): Publishes joint states for visualization.
-- `rviz2`: Visualization tool.
+- `robot_state_publisher` (from rsp.launch.py): Publishes transforms from URDF, uses sim time and ros2_control.
+- `joystick` (from joystick.launch.py): Launches joystick teleop node (see joystick.launch.py for details).
+- `teleop_twist_keyboard` (teleop_twist_keyboard): Publishes `/diff_cont/cmd_vel_unstamped` for manual control.
+- `cmd_vel_relay` (topic_tools/relay): Relays `/cmd_vel` to `/diff_cont/cmd_vel_unstamped` (connects Nav2 output to robot controller).
+- `gazebo` (ros_gz_sim/gz_sim.launch.py): Simulates the robot and world.
+- `spawn_entity` (ros_gz_sim/create): Spawns the robot in Gazebo using the URDF.
+- `diff_drive_spawner` (controller_manager/spawner): Spawns the diff drive controller.
+- `joint_broad_spawner` (controller_manager/spawner): Spawns the joint broadcaster.
+- `ros_gz_bridge` (ros_gz_bridge/parameter_bridge): Bridges Gazebo topics to ROS2, uses `gz_bridge.yaml`.
+- `ros_gz_image_bridge` (ros_gz_image/image_bridge): Bridges camera image topics.
+- `robot.urdf.xacro` (pharma_bot/description): Robot model used for simulation and state publishing.
+- `corridor.world` (pharma_bot/worlds): Gazebo world file.
+- `gz_bridge.yaml` (pharma_bot/config): Topic bridge configuration.
 
 **Relationships:**
-- `gazebo` publishes `/cmd_vel`, `/scan`, `/odom`, `/tf`.
-- `relay_node` relays these topics to ROS2.
-- `robot_state_publisher` and `joint_state_publisher` provide transforms and joint states for visualization in `rviz2`.
-- `rviz2` subscribes to all visualization topics.
+- `gazebo` simulates the robot and publishes sensor and state topics.
+- `spawn_entity` loads the robot model into Gazebo.
+- `robot_state_publisher` publishes transforms from the URDF for visualization and control.
+- `diff_drive_spawner` and `joint_broad_spawner` enable control and joint state feedback.
+- `ros_gz_bridge` bridges topics (e.g., `/scan`, `/odom`, `/cmd_vel`) between Gazebo and ROS2.
+- `ros_gz_image_bridge` bridges camera images.
+- `teleop_twist_keyboard` allows manual velocity control, publishing to `/diff_cont/cmd_vel_unstamped`.
+- `cmd_vel_relay` relays `/cmd_vel` (from Nav2 or other sources) to `/diff_cont/cmd_vel_unstamped` for robot control.
+- `joystick` node provides joystick-based teleop, also publishing velocity commands.
+
+**Topic Flow:**
+- `/cmd_vel` (from Nav2 or teleop) → `cmd_vel_relay` → `/diff_cont/cmd_vel_unstamped` → diff drive controller in Gazebo.
+- Sensor topics (`/scan`, `/odom`, `/tf`, `/camera/image_raw`) are bridged from Gazebo to ROS2 for use by SLAM, navigation, and visualization.
+- `robot_state_publisher` and joint broadcaster provide transforms and joint states for RViz and controllers.
+
+**Relevant Files:**
+- `launch_sim.launch.py` (main simulation launch)
+- `rsp.launch.py` (robot state publisher)
+- `joystick.launch.py` (joystick teleop)
+- `gz_bridge.yaml` (topic bridge configuration)
+- `robot.urdf.xacro` (robot model)
+- `corridor.world` (Gazebo world)
 
 ---
 
@@ -95,20 +121,38 @@ rviz2 -d /home/ubuntu/dev_ws/src/pharma_bot/config/slam2.rviz
 ros2 launch pharma_bot pi_test_launch.py
 ```
 **Nodes/Files/Programs Launched:**
-- `motor_driver` (serial_motor_demo/driver): Communicates with Arduino, controls motors.
-- `teleop_bridge` (serial_motor_demo/teleop_bridge): Converts `/cmd_vel` to motor commands.
-- `joint_state_bridge` (pharma_bot/joint_state_bridge.py): Publishes joint states for visualization.
-- `simple_odometry` (serial_motor_demo/simple_odometry): Publishes odometry.
-- `ldlidar_node` (ldlidar_node/ldlidar_bringup.launch.py): Publishes `/scan`.
-- `lidar_lifecycle_manager` (pharma_bot/lidar_lifecycle_manager.py): Manages LiDAR node lifecycle.
+- `motor_driver` (serial_motor_demo/driver): Communicates with Arduino via USB, sends motor commands, receives encoder feedback.
+- `teleop_bridge` (serial_motor_demo/teleop_bridge): Subscribes to `/cmd_vel`, converts velocity commands to motor commands for differential drive.
+- `joint_state_bridge` (pharma_bot/pharma_bot/joint_state_bridge.py): Converts encoder data to joint states for visualization.
+- `simple_odometry` (serial_motor_demo/simple_odometry): Converts encoder data to odometry (`odom->base_link` transform) for SLAM/localization. (May be disabled if handled elsewhere.)
+- `ldlidar_node` (Lidar/ldlidar_node/launch/ldlidar_bringup.launch.py): Publishes `/scan` topic from LiDAR sensor.
+- `lidar_lifecycle_manager` (pharma_bot/pharma_bot/lidar_lifecycle_manager.py): Manages LiDAR node lifecycle, ensures robust startup and operation.
+- `robot.urdf.xacro` (pharma_bot/description): Robot model for transforms and visualization.
 
 **Relationships:**
-- `teleop_bridge` subscribes to `/cmd_vel` (from Nav2 or teleop).
+- `teleop_bridge` subscribes to `/cmd_vel` (from Nav2 or teleop sources).
 - `teleop_bridge` sends motor commands to `motor_driver`.
-- `motor_driver` communicates with Arduino for motor control.
-- `motor_driver` sends encoder data to `joint_state_bridge` and `simple_odometry`.
+- `motor_driver` communicates with Arduino for direct motor control.
+- `motor_driver` sends encoder data to `joint_state_bridge` (for joint states) and `simple_odometry` (for odometry).
+- `joint_state_bridge` publishes joint states for visualization in RViz.
+- `simple_odometry` publishes odometry for SLAM/localization.
 - `ldlidar_node` publishes `/scan` for SLAM/localization.
-- `lidar_lifecycle_manager` ensures robust LiDAR operation.
+- `lidar_lifecycle_manager` ensures LiDAR node starts and operates correctly.
+- All transforms and joint states are based on the robot model (`robot.urdf.xacro`).
+
+**Topic Flow:**
+- `/cmd_vel` (from Nav2 or teleop) → `teleop_bridge` → motor commands → `motor_driver` → Arduino → Motors.
+- Encoder data → `joint_state_bridge` → joint states for RViz.
+- Encoder data → `simple_odometry` → `/odom` for SLAM/localization.
+- `/scan` (from `ldlidar_node`) → SLAM/localization nodes.
+- All relevant transforms and joint states are published for visualization and control.
+
+**Relevant Files:**
+- `pi_test_launch.py` (main hardware launch)
+- `joint_state_bridge.py` (joint state conversion)
+- `lidar_lifecycle_manager.py` (LiDAR lifecycle management)
+- `ldlidar_bringup.launch.py` (LiDAR node launch)
+- `robot.urdf.xacro` (robot model)
 
 ---
 
