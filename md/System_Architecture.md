@@ -277,4 +277,156 @@ ngrok http 8000
 
 ---
 
-Use this breakdown to draw architecture diagrams for each launch state, showing all nodes, files, and their relationships. Each bullet point can be a box in your diagram, and each relationship an arrow or connector.
+## Dev Test Launch (Teleop + SLAM Mapping)
+**Command:**
+```
+ros2 launch pharma_bot dev_test_launch.py
+```
+**Nodes/Files/Programs Launched:**
+- `robot_state_publisher` (robot.urdf.xacro): Publishes transforms from URDF.
+- `simple_odometry` (serial_motor_demo): Processes wheel encoder odometry.
+- `tf2_ros/static_transform_publisher` (base_link → left_wheel, base_link → right_wheel): Publishes static transforms for wheel visualization.
+- `nav2_lifecycle_manager` (lifecycle_manager): Manages SLAM Toolbox lifecycle (params: lifecycle_mgr_slam.yaml).
+- `slam_toolbox` (async_slam_toolbox_node): Real-time SLAM mapping (params: mapper_params_online_async.yaml, remaps `/scan` → `/ldlidar_node/scan`).
+- `rviz2` (pharma_bot.rviz): Visualization of robot, LiDAR, and SLAM.
+- `teleop_twist_keyboard`: Keyboard teleop for manual driving (remaps `/cmd_vel` → `/cmd_vel`).
+- **Launch Arguments:** `use_sim_time`, `encoder_cpr`.
+
+**Relationships:**
+- `robot_state_publisher` publishes transforms for all robot links.
+- `simple_odometry` provides odometry data.
+- Static transforms ensure correct wheel visualization in RViz.
+- `slam_toolbox` subscribes to `/ldlidar_node/scan`, publishes `/map`, `/odom`, `/tf`.
+- `nav2_lifecycle_manager` controls SLAM node startup/shutdown.
+- `teleop_twist_keyboard` allows manual velocity control.
+- `rviz2` visualizes robot, LiDAR, and SLAM outputs.
+
+**Topic Flow:**
+- `/ldlidar_node/scan` → `slam_toolbox` (remapped as `/scan`).
+- `/cmd_vel` (from teleop) → robot controller.
+- `/map`, `/odom`, `/tf` published for visualization and navigation.
+
+**Relevant Files:**
+- `dev_test_launch.py` (main launch)
+- `robot.urdf.xacro` (robot model)
+- `pharma_bot.rviz` (RViz config)
+- `lifecycle_mgr_slam.yaml` (lifecycle manager params)
+- `mapper_params_online_async.yaml` (SLAM params)
+
+---
+
+## Dev Test Launch Localization (Teleop + SLAM Localization)
+**Command:**
+```
+ros2 launch pharma_bot dev_test_launch_localization.py
+```
+**Nodes/Files/Programs Launched:**
+- `robot_state_publisher` (robot.urdf.xacro): Publishes transforms from URDF.
+- `simple_odometry` (serial_motor_demo): Processes wheel encoder odometry.
+- `tf2_ros/static_transform_publisher` (base_link → left_wheel, base_link → right_wheel): Publishes static transforms for wheel visualization.
+- `nav2_lifecycle_manager` (lifecycle_manager): Manages SLAM Toolbox lifecycle (params: lifecycle_mgr_slam.yaml).
+- `slam_toolbox` (localization_slam_toolbox_node): SLAM localization using saved maps (params: mapper_params_online_async.yaml, remaps `/scan` → `/ldlidar_node/scan`).
+- `rviz2` (pharma_bot.rviz): Visualization of robot, LiDAR, and SLAM.
+- `teleop_twist_keyboard`: Keyboard teleop for manual driving (remaps `/cmd_vel` → `/cmd_vel`).
+- `topic_tools/relay` (relay_cmd_vel_smoothed): Relays `/cmd_vel_smoothed` → `/cmd_vel`.
+- **Launch Arguments:** `use_sim_time`, `encoder_cpr`.
+
+**Relationships:**
+- Same as mapping mode, but SLAM Toolbox runs in localization mode (uses saved maps).
+- Relay node ensures smoothed velocity commands reach robot controller.
+
+**Topic Flow:**
+- `/ldlidar_node/scan` → `slam_toolbox` (remapped as `/scan`).
+- `/cmd_vel_smoothed` → relay → `/cmd_vel` → robot controller.
+- `/map`, `/odom`, `/tf` published for visualization and navigation.
+
+**Relevant Files:**
+- `dev_test_launch_localization.py` (main launch)
+- `robot.urdf.xacro` (robot model)
+- `pharma_bot.rviz` (RViz config)
+- `lifecycle_mgr_slam.yaml` (lifecycle manager params)
+- `mapper_params_online_async.yaml` (SLAM params)
+
+---
+
+## Dev Test AMCL Launch (Teleop + AMCL Localization + Nav2)
+**Command:**
+```
+ros2 launch pharma_bot dev_test_amcl_launch.py
+```
+**Nodes/Files/Programs Launched:**
+- `robot_state_publisher` (robot.urdf.xacro): Publishes transforms from URDF.
+- `simple_odometry` (serial_motor_demo): Processes wheel encoder odometry.
+- `tf2_ros/static_transform_publisher` (base_link → left_wheel, base_link → right_wheel): Publishes static transforms for wheel visualization.
+- `rviz2` (pharma_bot.rviz): Visualization of robot, LiDAR, and localization.
+- `teleop_twist_keyboard`: Keyboard teleop for manual driving.
+- `topic_tools/relay` (relay_cmd_vel_smoothed): Relays `/cmd_vel_smoothed` → `/cmd_vel`.
+- `topic_tools/relay` (scan_relay): Relays `/ldlidar_node/scan` → `/scan` for AMCL compatibility.
+- **Launch Arguments:** `use_sim_time`, `encoder_cpr`.
+- **(Commented/Optional):** Includes AMCL and Nav2 launch files for full navigation stack.
+
+**Relationships:**
+- AMCL and Nav2 launches are included for full localization and navigation (map required).
+- Relay nodes ensure correct topic remapping for velocity and scan data.
+
+**Topic Flow:**
+- `/ldlidar_node/scan` → scan relay → `/scan` → AMCL.
+- `/cmd_vel_smoothed` → relay → `/cmd_vel` → robot controller.
+- `/map`, `/odom`, `/tf` published for localization and navigation.
+
+**Relevant Files:**
+- `dev_test_amcl_launch.py` (main launch)
+- `robot.urdf.xacro` (robot model)
+- `pharma_bot.rviz` (RViz config)
+- (Commented) `localization_launch.py`, `navigation_launch.py` (AMCL/Nav2)
+
+---
+
+## AMCL Localization Launch
+**Command:**
+```
+ros2 launch pharma_bot amcl_localization_launch.py map:=/path/to/map.yaml use_sim_time:=false
+```
+**Nodes/Files/Programs Launched:**
+- `topic_tools/relay` (scan_relay): Relays `/ldlidar_node/scan` → `/scan` for AMCL compatibility.
+- `nav2_bringup/localization_launch.py`: Includes Nav2 localization stack (map_server + AMCL, params: nav2_params.yaml).
+- **Launch Arguments:** `map`, `use_sim_time`, `params_file`, `autostart`, `use_composition`, `use_respawn`.
+
+**Relationships:**
+- Relay node ensures scan topic is compatible with AMCL.
+- Nav2 localization stack uses provided map and params for localization.
+
+**Topic Flow:**
+- `/ldlidar_node/scan` → scan relay → `/scan` → AMCL.
+- `/map`, `/odom`, `/tf` published for localization and navigation.
+
+**Relevant Files:**
+- `amcl_localization_launch.py` (main launch)
+- `nav2_params.yaml` (Nav2 params)
+- `map.yaml` (map file)
+
+---
+
+## AMCL Navigation Launch
+**Command:**
+```
+ros2 launch pharma_bot amcl_navigation_launch.py use_sim_time:=false map_subscribe_transient_local:=true
+```
+**Nodes/Files/Programs Launched:**
+- `topic_tools/relay` (scan_relay): Relays `/ldlidar_node/scan` → `/scan` for Nav2 compatibility.
+- `navigation_launch.py`: Includes Nav2 navigation stack (params: nav2_params.yaml).
+- **Launch Arguments:** `use_sim_time`, `params_file`, `autostart`, `use_composition`, `use_respawn`, `map_subscribe_transient_local`.
+
+**Relationships:**
+- Relay node ensures scan topic is compatible with Nav2.
+- Nav2 navigation stack uses provided params for path planning and control.
+
+**Topic Flow:**
+- `/ldlidar_node/scan` → scan relay → `/scan` → Nav2.
+- `/map`, `/odom`, `/tf` published for navigation.
+
+**Relevant Files:**
+- `amcl_navigation_launch.py` (main launch)
+- `nav2_params.yaml` (Nav2 params)
+
+---
