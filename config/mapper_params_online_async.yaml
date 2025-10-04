@@ -19,7 +19,7 @@ slam_toolbox:
 
     # Map saving configuration - Updated path for your system
     # This determines where maps will be saved when you call save_map service
-    map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/corridor_serial
+    map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_serial
     map_start_pose: [0.0, 0.0, 0.0]  # Starting pose (x, y, theta)
     map_start_at_dock: true         # Changed to false - let AMCL/localization handle initial pose
                                     # Set to true for localization mode to start at known dock position

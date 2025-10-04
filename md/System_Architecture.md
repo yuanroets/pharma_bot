@@ -86,8 +86,8 @@ ros2 launch nav2_bringup navigation_launch.py use_sim_time:=true
 ### AMCL Mode
 **Command:**
 ```
-ros2 launch pharma_bot localisation_launch.py map:=my_map_save.yaml use_sim_time:=true
-ros2 launch pharma_bot navigation_launch.py use_sim_time:=true map_subscribe_transient_local:=true
+ros2 launch pharma_bot amcl_localization_launch.py map:=my_map_save.yaml use_sim_time:=true
+ros2 launch pharma_bot amcl_navigation_launch.py use_sim_time:=true map_subscribe_transient_local:=true
 ```
 **Nodes/Files/Programs Launched:**
 - `amcl` (localisation_launch.py): Probabilistic localization using saved map.

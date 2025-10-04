@@ -38,7 +38,7 @@ class WheelSeparationTest(Node):
         self.current_odom = None
         
         # Current wheel separation from launch file
-        self.current_wheel_separation = 0.155  # 155mm
+        self.current_wheel_separation = 0.160  # Decreased from 0.173 to reduce negative yaw drift
         
         self.get_logger().info("Wheel Separation Test Started")
         self.get_logger().info("Current wheel separation: 155mm")
