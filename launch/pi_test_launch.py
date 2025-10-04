@@ -65,8 +65,8 @@ def generate_launch_description():
 
     declare_motor_1_scaler = DeclareLaunchArgument(
         'motor_1_scaler',
-        default_value='0.93',
-        description='Left motor scaler to correct wheel bias (further reduced for persistent speed difference)'
+        default_value='0.88',
+        description='Left motor scaler to correct wheel bias (aggressive reduction: 9651/10010 = 0.964)'
     )
 
     declare_motor_2_scaler = DeclareLaunchArgument(
