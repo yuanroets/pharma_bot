@@ -99,7 +99,7 @@ def generate_launch_description():
         name='teleop_bridge',
         output='screen',
         parameters=[{
-            'wheel_separation': 0.160,  # Decreased from 0.173 to reduce negative yaw drift
+            'wheel_separation': 0.153,  # Optimized through circle testing for best odometry
             'wheel_radius': 0.02569,      # 25.69mm radius (real hardware)
             'max_linear_speed': 1.0,
             'max_angular_speed': 2.0,
@@ -125,7 +125,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.160,  # Decreased from 0.173 to reduce negative yaw drift
+            'wheel_separation': 0.153,  # Optimized through circle testing for best odometry
             'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
         }]
     )

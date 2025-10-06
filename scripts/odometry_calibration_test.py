@@ -49,7 +49,7 @@ class OdometryCalibrationTest(Node):
         # Current parameters (from launch file)
         self.encoder_cpr = 1859
         self.wheel_radius = 0.02569  # 25.69mm
-        self.wheel_separation = 0.160  # Decreased from 0.173 to reduce negative yaw drift
+        self.wheel_separation = 0.153  # Optimized through circle testing for best odometry
         
         self.get_logger().info("Odometry Calibration Test Started")
         self.get_logger().info("Commands:")
