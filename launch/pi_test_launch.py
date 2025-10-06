@@ -65,8 +65,8 @@ def generate_launch_description():
 
     declare_motor_1_scaler = DeclareLaunchArgument(
         'motor_1_scaler',
-        default_value='0.88',
-        description='Left motor scaler to correct wheel bias (aggressive reduction: 9651/10010 = 0.964)'
+        default_value='0.80',
+        description='Left motor scaler to counteract Arduino LEFT_MOTOR_FACTOR (1.1045) and wheel bias'
     )
 
     declare_motor_2_scaler = DeclareLaunchArgument(
