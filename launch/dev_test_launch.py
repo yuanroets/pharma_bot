@@ -120,36 +120,36 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.153,  # Optimized through circle testing for best odometry
+            'wheel_separation': 0.170,  # Final optimized value through systematic testing
             'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
         }]
     )
 
-    # Lifecycle manager for SLAM Toolbox
-    slam_lifecycle_manager = Node(
-        package='nav2_lifecycle_manager',
-        executable='lifecycle_manager',
-        name='lifecycle_manager',
-        output='screen',
-        parameters=[
-            '/home/ubuntu/dev_ws/src/pharma_bot/config/lifecycle_mgr_slam.yaml'
-        ]
-    )
+    # Lifecycle manager for SLAM Toolbox - COMMENTED OUT FOR ODOMETRY TESTING
+    # slam_lifecycle_manager = Node(
+    #     package='nav2_lifecycle_manager',
+    #     executable='lifecycle_manager',
+    #     name='lifecycle_manager',
+    #     output='screen',
+    #     parameters=[
+    #         '/home/ubuntu/dev_ws/src/pharma_bot/config/lifecycle_mgr_slam.yaml'
+    #     ]
+    # )
 
-    # SLAM Toolbox Mapping Node - Creates maps in real-time
-    slam_toolbox_node = LifecycleNode(
-        package='slam_toolbox',
-        executable='async_slam_toolbox_node',
-        namespace='',
-        name='slam_toolbox',
-        output='screen',
-        parameters=[
-            '/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml'
-        ],
-        remappings=[
-            ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
-        ]          
-    )
+    # SLAM Toolbox Mapping Node - COMMENTED OUT FOR ODOMETRY TESTING
+    # slam_toolbox_node = LifecycleNode(
+    #     package='slam_toolbox',
+    #     executable='async_slam_toolbox_node',
+    #     namespace='',
+    #     name='slam_toolbox',
+    #     output='screen',
+    #     parameters=[
+    #         '/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml'
+    #     ],
+    #     remappings=[
+    #         ('/scan', '/ldlidar_node/scan')  # Remap from standard /scan to actual LiDAR topic
+    #     ]          
+    # )
 
     # Teleop Keyboard Control - For driving the robot
     teleop_keyboard = Node(
@@ -196,8 +196,8 @@ def generate_launch_description():
     # ld.add_action(static_tf_odom_to_base)        # DISABLED - SLAM handles odom → base_link
     ld.add_action(static_tf_base_to_left_wheel)  # Wheel transforms with correct orientation
     ld.add_action(static_tf_base_to_right_wheel) # Wheel transforms with correct orientation
-    ld.add_action(slam_lifecycle_manager)        # Lifecycle manager for SLAM
-    ld.add_action(slam_toolbox_node)             # SLAM mapping with topic remapping
+    # ld.add_action(slam_lifecycle_manager)        # COMMENTED OUT FOR ODOMETRY TESTING
+    # ld.add_action(slam_toolbox_node)             # COMMENTED OUT FOR ODOMETRY TESTING  
     ld.add_action(rviz2)
     
     # Add delayed teleop

@@ -15,11 +15,11 @@ slam_toolbox:
     base_frame: base_link             # Changed from base_footprint to match your robot frames
     scan_topic: /scan                 # Standard scan topic (remapped in launch file to /ldlidar_node/scan)
     # scan_topic: /ldlidar_node/scan  # LiDAR's actual topic (now handled by launch file remapping)
-    mode: mapping                # For localization mode with saved maps
+    mode: mapping                     # Changed to mapping to create new map with optimized odometry
 
     # Map saving configuration - Updated path for your system
     # This determines where maps will be saved when you call save_map service
-    # map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_serial
+    map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_Nuwe_Serial
     map_start_pose: [0.0, 0.0, 0.0]  # Starting pose (x, y, theta)
     map_start_at_dock: true         # Changed to false - let AMCL/localization handle initial pose
                                     # Set to true for localization mode to start at known dock position

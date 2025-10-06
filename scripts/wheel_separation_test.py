@@ -38,7 +38,7 @@ class WheelSeparationTest(Node):
         self.current_odom = None
         
         # Current wheel separation from launch file
-        self.current_wheel_separation = 0.153  # Optimized through circle testing for best odometry
+        self.current_wheel_separation = 0.170  # Final optimized value through systematic testing
         
         self.get_logger().info("Wheel Separation Test Started")
         self.get_logger().info("Current wheel separation: 155mm")

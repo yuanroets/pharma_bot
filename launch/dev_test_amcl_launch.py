@@ -91,7 +91,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.153,
+            'wheel_separation': 0.170,
             'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
         }]
     )

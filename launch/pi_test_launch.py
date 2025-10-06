@@ -65,8 +65,8 @@ def generate_launch_description():
 
     declare_motor_1_scaler = DeclareLaunchArgument(
         'motor_1_scaler',
-        default_value='1.0',
-        description='Left motor scaler - testing navigation with original values'
+        default_value='0.89',
+        description='Left motor scaler - final optimized value for Nav2 navigation'
     )
 
     declare_motor_2_scaler = DeclareLaunchArgument(
@@ -99,7 +99,7 @@ def generate_launch_description():
         name='teleop_bridge',
         output='screen',
         parameters=[{
-            'wheel_separation': 0.153,  # Optimized through circle testing for best odometry
+            'wheel_separation': 0.170,  # Final optimized value through systematic testing
             'wheel_radius': 0.02569,      # 25.69mm radius (real hardware)
             'max_linear_speed': 1.0,
             'max_angular_speed': 2.0,
@@ -125,7 +125,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'encoder_cpr': encoder_cpr,
-            'wheel_separation': 0.153,  # Optimized through circle testing for best odometry
+            'wheel_separation': 0.170,  # Final optimized value through systematic testing
             'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
         }]
     )
