@@ -16,7 +16,7 @@ slam_toolbox:
     scan_topic: /scan                 # Standard scan topic (remapped in launch file to /ldlidar_node/scan)
     # scan_topic: /ldlidar_node/scan  # LiDAR's actual topic (now handled by launch file remapping)
     mode: mapping                          # Use mapping mode for SLAM + dynamic obstacles
-    map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_mooi_serial
+    # map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_mooi_serial
     map_start_pose: [0.0, 0.0, 0.0]       # Starting pose (x, y, theta)
     map_start_at_dock: true              # Let SLAM determine initial pose from LiDAR
 
