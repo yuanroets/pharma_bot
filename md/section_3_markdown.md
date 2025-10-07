@@ -1,11 +1,9 @@
 # 3 Technical Integration and Implementation
 
-# 3 Technical Integration and Implementation
-Implementation  
 The complexity of this project did not lie only in the hardware and software 
 development, but in creating a way of allowing so many complex systems to 
 interface correctly and efficiently. Modern autonomous robotics systems require 
-careful consideration of hardware -software integration, power management, 
+careful consideration of hardware-software integration, power management, 
 thermal design, and modularity to ensure reliable operation in demanding 
 environments. In this chapter I aim to explain the hardware and software design and 
 design choices, as well as showcasing how emergent  problems were mitigated by 
@@ -385,26 +383,135 @@ class SimpleOdometry(Node):
 ```
 Parameters (encoder CPR, wheel separation, radius) are empirically calibrated and set via YAML files (e.g., `motor_driver_params.yaml`).
 
-### 3.2.5 Sensor Integration and Data Processing
-LiDAR integration uses a composable lifecycle node (`pharma_bot/pharma_bot/lidar_lifecycle_manager.py`), publishing `sensor_msgs/LaserScan` on `/ldlidar_node/scan`. Configuration is managed via YAML, supporting dynamic reconfiguration and fault recovery. The transform tree (TF2) maintains spatial relationships between frames (`map`, `odom`, `base_link`, `ldlidar_link`), enabling sensor fusion and navigation.
+### 3.2.5 Simultaneous Localisation and Mapping (SLAM)
 
-### 3.2.6 SLAM, Localisation, and Navigation
-SLAM is performed using `slam_toolbox` in mapping mode, with parameters tuned for hospital environments. AMCL localization uses a particle filter, with parameters emphasizing LiDAR accuracy. The Nav2 stack provides global (A*) and local (DWA) planning, with layered costmaps for static, dynamic, and inflated obstacles. Launch files (`dev_test_launch.py`, `amcl_localization_launch.py`, `amcl_navigation_launch.py`) orchestrate these components, with topic remapping and parameterization for reproducibility.
+#### 3.2.5.1 SLAM Toolbox Implementation
 
-#### Example: SLAM and Navigation Parameters
-```yaml
-slam_toolbox:
-  ros__parameters:
-    solver_plugin: solver_plugins::CeresSolver
-    minimum_travel_distance: 0.5
-    do_loop_closing: true
-nav2_params:
-  global_costmap:
-    inflation_radius: 0.55
-  dwa_local_planner:
-    max_vel_x: 0.26
-    path_distance_bias: 64.0
-```
+The SLAM system utilises the slam_toolbox package (Macenski & Jambrecic, 2021), which implements graph-based SLAM algorithms optimised for real-time operation. The system operates in two primary modes:
+
+**Mapping Mode (online_async):**
+- Real-time map construction from LiDAR and odometry data
+- Loop closure detection and correction
+- Occupancy grid map generation
+- Pose graph optimisation
+
+**Localisation Mode (localization):**
+- Pose estimation within a known map
+- Particle filter-based localisation
+- Continuous pose correction and refinement
+
+The implementation uses the default slam_toolbox parameter set with minimal modifications for the distributed computing architecture and robot-specific requirements. The default parameters provide a well-tested baseline optimized for indoor mobile robotics applications. Several parameters were adjusted to improve network timing performance and motion update responsiveness for the distributed system architecture.
+
+**Operational Mode Configuration:** The mode parameter switches between mapping and localization. Mapping mode builds new maps from LiDAR and odometry data, performing real-time loop closure detection and pose graph optimization during initial environment surveying. Localization mode performs pose estimation within a pre-existing map (loaded via map_file_name) and is used during autonomous navigation missions. The map_start_at_dock parameter enables initialization at a known pose when entering localization mode, avoiding the initial uncertainty period where the particle filter must converge.
+
+#### 3.2.5.2 Occupancy Grid Mapping
+
+The slam_toolbox output consists of occupancy grid maps, where each cell contains a probability of occupancy. The mapping algorithm updates cell probabilities using the log-odds representation:
+
+𝑙(𝑐|𝑧₁:𝑡) = 𝑙(𝑐|𝑧₁:𝑟₋₁) + 𝑙𝑜𝑔(𝑃(𝑐|𝑧𝑡)) − 𝑙𝑜𝑔(𝑃(𝑐)) (24)
+
+Where 𝑓 represents the log-odds value, 𝑐 is the cell, and 𝑧₁:𝑡 are sensor measurements. This representation enables efficient incremental updates: each new sensor measurement adds a log-odds contribution rather than requiring full probability recalculation. The approach naturally handles sensor uncertainty by accumulating evidence over multiple observations, with cells becoming more confident (higher absolute log-odds values) as contradictory or confirming measurements arrive.
+
+The default map resolution of 0.05 metres per pixel balances navigation requirements with computational efficiency. This resolution provides adequate detail for representing doorways (typically 0.8-1.0 m wide, corresponding to 16-20 cells) and corridor features whilst maintaining manageable memory footprint (a 20m × 20m area requires 160,000 cells).
+
+#### 3.2.5.3 Localisation within Known Maps
+
+For operation within existing maps, the system employs Adaptive Monte Carlo Localisation (AMCL), which maintains a particle filter representation of position belief. The implementation uses default AMCL parameters (Macenski et al., 2023) with modifications for encoder-based odometry characteristics.
+
+**Modified Parameters:**
+
+**Particle Filter:** The particle count range is elevated compared to typical applications to handle geometric ambiguity in repetitive hospital corridors. The adaptive filter dynamically adjusts particle count based on localization confidence, using fewer particles when position is certain and approaching maximum during symmetric corridor sections until distinctive features resolve ambiguity.
+
+**Motion Model:** Reflects elevated uncertainty in encoder-based linear distance estimation due to wheel slip, deweighting odometry relative to LiDAR scan matching.
+
+**Update Thresholds:** Trigger filter updates more frequently during rotation where encoders accumulate greater error.
+
+**Sensor Model:** Emphasize accurate range measurements and subsample the 360° scan for computational efficiency.
+
+**Table 3.1: SLAM Toolbox Parameters - Original vs Tuned Values**
+
+| Parameter | Original Value | Tuned Value | Rationale |
+|-----------|----------------|-------------|-----------|
+| `map_update_interval` | 5.0 s | 2.0 s | More frequent map updates for dynamic environment handling |
+| `transform_timeout` | 0.2 s | 0.5 s | Increased timeout tolerance for network delays |
+| `minimum_time_interval` | 0.5 s | 0.2 s | More responsive mapping updates |
+| `minimum_travel_distance` | 0.5 m | 0.2 m | Finer granularity for detailed mapping |
+| `minimum_travel_heading` | 0.5 rad | 0.2 rad | More sensitive angular threshold for loop closure |
+| `loop_closure_frequency` | 10 | 5 | Reduced frequency to balance accuracy with computational load |
+| `max_laser_range` | 12.0 m | 8.0 m | Limited range appropriate for indoor hospital environment |
+| `resolution` | 0.05 m | 0.03 m | Higher resolution for detailed obstacle representation |
+
+**Table 3.1a: AMCL Localization Parameters - Original vs Tuned Values**
+
+| Parameter | Original Value | Tuned Value | Rationale |
+|-----------|----------------|-------------|-----------|
+| `kld_err` | 0.05 | 0.01 | Reduced error threshold for more accurate particle distribution |
+| `odom_alpha_3` | 0.2 | 0.1 | Reduced rotational drift noise for better odometry model |
+| `update_min_d` | 0.2 m | 0.1 m | More frequent updates with smaller distance threshold |
+| `update_min_a` | π/6.0 rad | π/12.0 rad | More sensitive angular update threshold |
+| `laser_z_hit` | 0.5 | 0.95 | Increased weight for accurate laser measurements |
+| `laser_z_rand` | 0.5 | 0.05 | Reduced random measurement noise assumption |
+| `laser_max_beams` | 60 | 180 | Use more laser beams for better localization accuracy |
+| `min_particles` | 2000 | 1500 | Reduced minimum particles for computational efficiency |
+
+### 3.2.6 Navigation and Path Planning
+
+#### 3.2.6.1 Navigation Stack Architecture
+
+The navigation system employs the Nav2 stack (Macenski et al., 2020), implementing a behaviour tree-based architecture for decision coordination. The modular design separates responsibilities across five core components: the Planner Server performs global path planning using the A* algorithm on the occupancy grid map, the Controller Server executes local trajectory tracking with the Dynamic Window Approach (DWA), the Recoveries Server implements failure recovery behaviours including rotation, backup, and waiting, the Behaviour Tree Navigator coordinates high-level decision logic, and the Costmap system provides multi-layered obstacle representation combining static map obstacles, dynamic LiDAR detections, and inflated safety margins. This architecture enables the robot to handle temporary obstacles, recover from navigation failures, and dynamically replan paths when environmental conditions change.
+
+#### 3.2.6.2 Global Path Planning
+
+The A* algorithm operates on the occupancy grid map to find optimal paths from current position to goal locations. The implementation uses Euclidean distance as the heuristic function, combines distance travelled with obstacle proximity penalties in the cost function, applies post-processing smoothing for kinematically feasible trajectories, and triggers replanning when significant map changes occur (e.g., new obstacles detected). The planner operates at low frequency, sufficient given that global paths change infrequently in static environments whilst avoiding continuous recomputation overhead. Parameters were adjusted with relaxed tolerance to accommodate odometry drift, and unknown region planning enabled for exploration capabilities.
+
+#### 3.2.6.3 Local Path Planning and Obstacle Avoidance
+
+The DWA algorithm (Macenski et al., 2023) evaluates candidate trajectories within kinematic constraints, optimizing a multi-objective scoring function that combines path alignment, goal progress, and obstacle clearance. Trajectory evaluation occurs at high frequency, providing responsive real-time obstacle avoidance.
+
+**Safety-Oriented Parameter Selection:** Maximum speed is limited to enable safe stopping within LiDAR detection range with adequate reaction time margin. The trajectory prediction horizon balances forward planning (detecting obstacles early) against computational cost (longer horizons exponentially increase candidate trajectory count). Velocity sampling focuses resolution on rotational control where differential drive robots have greater agility.
+
+#### 3.2.6.4 Costmap Configuration
+
+The layered costmap system combines three representations: the Static Layer encodes permanent obstacles from the occupancy grid map; the Obstacle Layer incorporates real-time LiDAR detections of dynamic obstacles; and the Inflation Layer expands obstacle boundaries by a configurable inflation radius. Each layer assigns numerical costs (0-254 scale) to grid cells, with the combined costmap guiding path planning decisions.
+
+The inflation radius accounts for the robot's physical dimensions plus a safety margin. This configuration enables navigation through standard doorways with adequate clearance on each side, providing safety buffer for odometry uncertainty and dynamic obstacle margins (humans typically require personal space). Costmap update frequency balances obstacle detection responsiveness with computational load on the embedded system.
+
+**Table 3.2: Navigation Controller Parameters - Original vs Tuned Values**
+
+| Parameter | Original Value | Tuned Value | Rationale |
+|-----------|----------------|-------------|-----------|
+| `controller_frequency` | default | 20.0 Hz | High frequency trajectory evaluation for responsive obstacle avoidance |
+| `max_vel_x` | 0.26 m/s | 0.12 m/s | Conservative speed for safe hospital navigation |
+| `max_vel_theta` | 1.0 rad/s | 0.4 rad/s | Reduced rotational speed for stability and safety |
+| `acc_lim_x` | 1.0 m/s² | 0.4 m/s² | Gentle acceleration for smooth patient-friendly operation |
+| `decel_lim_x` | -1.0 m/s² | -1.5 m/s² | Enhanced deceleration for rapid obstacle response |
+| `sim_time` | 2.0 s | 2.5 s | Extended planning horizon for early obstacle detection |
+| `PathAlign.scale` | 20.0 | 32.0 | Increased weight to maintain close path following |
+| `path_distance_bias` | default | 64.0 | Bias for path alignment in multi-objective scoring |
+| `goal_distance_bias` | default | 24.0 | Weight for goal progress in trajectory scoring |
+| `occdist_scale` | default | 0.02 | Scale factor for obstacle clearance scoring |
+| `vx_samples` | 25 | 30 | More velocity sampling options for better trajectory selection |
+| `vy_samples` | default | 5 | Velocity sampling for holonomic motion (not used for differential drive) |
+| `vtheta_samples` | 25 | 30 | More angular velocity options for smoother turning |
+| `linear_granularity` | 0.03 | 0.02 | Higher resolution trajectory evaluation |
+| `angular_granularity` | 0.02 | 0.015 | Higher angular resolution for smoother rotational movements |
+| `xy_goal_tolerance` | 0.25 m | 0.35 m | Relaxed tolerance accounting for odometry uncertainty |
+| `trans_stopped_velocity` | 0.1 m/s | 0.08 m/s | More sensitive stopped detection for better goal achievement |
+
+**Table 3.3: Costmap Parameters - Original vs Tuned Values**
+
+| Parameter | Original Value | Tuned Value | Rationale |
+|-----------|----------------|-------------|-----------|
+| `inflation_radius` | 0.55 m | 1.0 m | Larger safety cushion around obstacles for conservative navigation |
+| `cost_scaling_factor` | 5.0 | 4.5 | Balanced scaling for safety without excessive path deviation |
+| `update_frequency` (local) | 10.0 Hz | 12.0 Hz | Higher frequency for responsive dynamic obstacle detection |
+| `update_frequency` (global) | 2.0 Hz | 3.0 Hz | Faster global map updates for planning efficiency |
+| `robot_radius` | 0.22 m | 0.21 m | Accurate representation of 300mm robot footprint |
+| `resolution` | 0.05 m | 0.025 m | Higher resolution for precise obstacle representation |
+| `obstacle_max_range` | 3.5 m | 4.0 m | Extended detection range for early obstacle identification |
+| `raytrace_max_range` | 4.0 m | 4.5 m | Longer raytracing for effective obstacle clearing |
+
+The navigation system's parameter configuration reflects a safety-first approach optimised for healthcare environments, where smooth operation, conservative speeds, and reliable obstacle avoidance are paramount. The extensive tuning process resulted in robust navigation behaviour that prioritises patient safety while maintaining operational efficiency.
 
 ### 3.2.7 Systems Engineering and Design Justification
 ROS2’s modular, distributed architecture directly supports systems engineering principles:
@@ -485,30 +592,7 @@ A rigorous testing and validation process is essential for demonstrating the rel
   - Diagrams/plots for key results (e.g., odometry error, PID response, navigation accuracy).
   - Block diagram of test setup if relevant.
 
----
-
-# Improvements and Explicit Prompts Added to Software Section
-
-## 3.2.4 Hardware Abstraction and Embedded Control
-- **Add:** Quantitative results for odometry calibration (e.g., measured vs. calculated distance, error statistics).
-- **Add:** Table of wheel separation and radius values before and after calibration.
-- **Prompt:** Include plots of encoder counts vs. distance and error over multiple trials.
-
-## 3.2.6 SLAM, Localisation, and Navigation
-- **Add:** Quantitative results for mapping accuracy (e.g., overlay generated map with ground truth, record deviation).
-- **Prompt:** Include trajectory plots and error analysis for navigation tests.
-
-## 3.2.7 Systems Engineering and Design Justification
-- **Add:** Brief reference to relevant robotics/mechatronics standards (e.g., ROS2 REP standards, ISO hospital robot safety if applicable).
-- **Prompt:** Discuss how modularity, scalability, and maintainability align with mechatronic engineering principles.
-
-## 3.2.9 Testing and Performance Characterization
-- **Add:** Explicit prompt to include summary table of all test results and key metrics.
-- **Prompt:** Add diagrams/plots for odometry, PID, and navigation performance.
-
----
-
-### PID Tuning and Motor Control Validation
+### 3.3.6 PID Tuning and Motor Control Validation
 
 To validate the PID tuning and motor symmetry, a step response test was performed using teleop_twist_keyboard to command the robot to move forward and backward. The default velocity command was used, resulting in a target speed close to 13 rad/s, as observed in the motor speed response plot below.
 
@@ -525,3 +609,19 @@ The following figure shows the recorded left and right motor speeds in response 
 
 **Conclusion:**
 This step response demonstrates that the PID parameters are tuned well enough for reliable motor control. The system achieves fast, stable, and symmetric response for both motors, validating the control architecture for further navigation and integration testing.
+
+---
+
+## References
+
+Macenski, S. & Jambrecic, I. (2021). SLAM Toolbox: SLAM for the dynamic world. *Journal of Open Source Software*, 6(61), 2783. https://doi.org/10.21105/joss.02783
+
+Macenski, S., Martín, F., White, R. & Clavero, J. G. (2020). The Marathon 2: A Navigation System. In *2020 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*. IEEE. https://arxiv.org/abs/2003.00368
+
+Macenski, S., Moore, T., Lu, D. V., Merzlyakov, A. & Ferguson, M. (2023). From the desks of ROS maintainers: A survey of modern & capable mobile robotics algorithms in the robot operating system 2. *Robotics and Autonomous Systems*, 168, 104493. https://doi.org/10.1016/j.robot.2023.104493
+
+Macenski, S., Booker, M. & Wallace, J. (2024). Open-Source, Cost-Aware Kinematically Feasible Planning for Mobile and Surface Robotics. *arXiv preprint arXiv:2401.07993*. https://arxiv.org/abs/2401.07993
+
+Macenski, S., Singh, S., Martin, F. & Gines, J. (2023). Regulated Pure Pursuit for Robot Path Tracking. *Autonomous Robots*, 47(6), 685-702. https://doi.org/10.1007/s10514-023-10097-6
+
+Merzlyakov, A. & Macenski, S. (2021). A Comparison of Modern General-Purpose Visual SLAM Approaches. In *2021 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*. IEEE. https://arxiv.org/abs/2107.07589
