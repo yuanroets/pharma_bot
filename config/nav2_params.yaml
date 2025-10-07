@@ -81,8 +81,8 @@ controller_server:
     # Progress checker parameters
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
-      movement_time_allowance: 10.0
+      required_movement_radius: 0.3      # Reduced from 0.5: More sensitive progress detection
+      movement_time_allowance: 8.0       # Reduced from 10.0: Less patience for stuck situations
     # Goal checker parameters
     #precise_goal_checker:
     #  plugin: "nav2_controller::SimpleGoalChecker"
@@ -99,37 +99,37 @@ controller_server:
       debug_trajectory_details: True
       min_vel_x: 0.0
       min_vel_y: 0.0
-      max_vel_x: 0.25                     # Reduced max speed for better obstacle reaction
+      max_vel_x: 0.12                     # Reduced from 0.18: Much slower for better control
       max_vel_y: 0.0
-      max_vel_theta: 0.8                  # Reduced rotation speed for stability
+      max_vel_theta: 0.4                  # Reduced from 0.6: Slower rotation for stability
       min_speed_xy: 0.0
-      max_speed_xy: 0.25                  # Reduced for safety
+      max_speed_xy: 0.12                  # Reduced from 0.18: Much slower overall
       min_speed_theta: 0.0
-      acc_lim_x: 0.8                      # Reduced acceleration for smoother motion
+      acc_lim_x: 0.4                      # Reduced from 0.6: Very gentle acceleration
       acc_lim_y: 0.0
-      acc_lim_theta: 1.2                  # Reduced rotational acceleration
-      decel_lim_x: -0.8                   # Matched acceleration
+      acc_lim_theta: 0.8                  # Reduced from 1.0: Very gentle rotational acceleration
+      decel_lim_x: -1.5                   # Increased from -1.2: Even faster deceleration for safety
       decel_lim_y: 0.0
-      decel_lim_theta: -1.2               # Matched rotational acceleration
-      vx_samples: 25                      # More velocity samples for better paths
+      decel_lim_theta: -1.8               # Increased from -1.5: Faster rotational stopping
+      vx_samples: 30                      # Increased from 25: More velocity options
       vy_samples: 5
-      vtheta_samples: 25                  # More angular samples
-      sim_time: 2.0                       # Longer prediction time for obstacles
-      linear_granularity: 0.03            # Higher resolution trajectory checking
-      angular_granularity: 0.02           # Higher resolution angular checking
-      transform_tolerance: 0.2            # Tighter transform tolerance
-      xy_goal_tolerance: 0.25             # Tighter goal tolerance
-      trans_stopped_velocity: 0.1         # Lower stopped velocity threshold
+      vtheta_samples: 30                  # Increased from 25: More angular options
+      sim_time: 2.5                       # Increased from 2.0: Look further ahead for obstacles
+      linear_granularity: 0.02            # Increased from 0.03: Even higher resolution
+      angular_granularity: 0.015          # Increased from 0.02: Higher angular resolution
+      transform_tolerance: 0.2            # Keep tight transform tolerance
+      xy_goal_tolerance: 0.25             # Keep current goal tolerance
+      trans_stopped_velocity: 0.08        # Reduced from 0.1: More sensitive stopped detection
       short_circuit_trajectory_evaluation: True
       stateful: True
       critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
-      BaseObstacle.scale: 0.05            # Higher obstacle avoidance weight
-      PathAlign.scale: 24.0               # Reduced path following weight
-      PathAlign.forward_point_distance: 0.15
-      GoalAlign.scale: 20.0               # Reduced goal alignment weight  
-      GoalAlign.forward_point_distance: 0.15
-      PathDist.scale: 24.0                # Reduced path distance weight
-      GoalDist.scale: 20.0                # Reduced goal distance weight
+      BaseObstacle.scale: 0.02
+      PathAlign.scale: 32.0
+      GoalAlign.scale: 24.0
+      PathAlign.forward_point_distance: 0.1
+      GoalAlign.forward_point_distance: 0.1
+      PathDist.scale: 32.0
+      GoalDist.scale: 24.0
       RotateToGoal.scale: 32.0
       RotateToGoal.slowing_factor: 5.0
       RotateToGoal.lookahead_time: -1.0
@@ -137,20 +137,20 @@ controller_server:
 local_costmap:
   local_costmap:
     ros__parameters:
-      update_frequency: 10.0              # Faster updates for dynamic obstacles
-      publish_frequency: 5.0              # Faster publishing for reactive behavior
+      update_frequency: 12.0              # Increased from 10.0: Even faster obstacle detection
+      publish_frequency: 6.0              # Increased from 5.0: Faster publishing for reactive behavior
       global_frame: odom
       robot_base_frame: base_link
       rolling_window: true
-      width: 4                            # Larger window for better obstacle detection
-      height: 4                           # Larger window for better obstacle detection
-      resolution: 0.03                    # Higher resolution for precise obstacle detection
-      robot_radius: 0.22
+      width: 5                            # Keep larger safety window
+      height: 5                           # Keep larger safety window
+      resolution: 0.025                   # Keep high resolution for precise detection
+      robot_radius: 0.21                  # Increased from 0.22: 210mm radius for 300mm robot
       plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 4.0          # Higher scaling = more cautious around obstacles
-        inflation_radius: 0.8             # Larger safety buffer
+        cost_scaling_factor: 4.5          # Reduced from 5.0: Slightly less aggressive scaling
+        inflation_radius: 1.0             # Increased from 0.9: Larger safety cushion
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -167,9 +167,9 @@ local_costmap:
           clearing: True
           marking: True
           data_type: "LaserScan"
-          raytrace_max_range: 4.0         # Longer raytracing for better clearing
+          raytrace_max_range: 4.5         # Increased from 4.0: Longer raytracing
           raytrace_min_range: 0.0
-          obstacle_max_range: 3.5         # Longer obstacle detection range
+          obstacle_max_range: 4.0         # Increased from 3.5: Detect obstacles further away
           obstacle_min_range: 0.0
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
@@ -179,11 +179,11 @@ local_costmap:
 global_costmap:
   global_costmap:
     ros__parameters:
-      update_frequency: 2.0               # Faster updates for dynamic obstacles
-      publish_frequency: 2.0              # Faster publishing
+      update_frequency: 3.0               # Increased from 2.0: Faster global updates
+      publish_frequency: 2.5              # Increased from 2.0: Faster publishing
       global_frame: map
       robot_base_frame: base_link
-      robot_radius: 0.22
+      robot_radius: 0.21                  # Increased from 0.22: 210mm radius for 300mm robot
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
@@ -200,9 +200,9 @@ global_costmap:
           clearing: True
           marking: True
           data_type: "LaserScan"
-          raytrace_max_range: 4.0         # Longer raytracing for better clearing
+          raytrace_max_range: 4.5         # Increased from 4.0: Longer raytracing
           raytrace_min_range: 0.0
-          obstacle_max_range: 3.5         # Longer obstacle detection range
+          obstacle_max_range: 4.0         # Increased from 3.5: Detect obstacles further
           obstacle_min_range: 0.0
           inf_is_valid: false             # Don't use infinite readings
       static_layer:
@@ -210,8 +210,8 @@ global_costmap:
         map_subscribe_transient_local: True
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 4.0          # Higher scaling = more cautious
-        inflation_radius: 0.8             # Larger safety buffer
+        cost_scaling_factor: 4.5          # Reduced from 5.0: Slightly less aggressive scaling
+        inflation_radius: 1.0             # Increased from 0.9: Larger safety cushion
       always_send_full_costmap: True
 
 # The yaml_filename does not need to be specified since it going to be set by defaults in launch.
