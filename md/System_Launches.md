@@ -15,7 +15,7 @@ ros2 launch slam_toolbox online_async_launch.py params_file:=/home/ubuntu/dev_ws
 ## Localization with saved map
 ### Start SLAM localization with saved map
 source install/setup.bash
-ros2 launch slam_toolbox localization_launch.py slam_params_file:=/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml
+ros2 launch slam_toolbox localization_launch.py slam_params_file:=/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_localization.yaml
 
 ### Start Nav2 navigation stack
 source install/setup.bash
@@ -46,7 +46,7 @@ ros2 launch slam_toolbox online_async_launch.py params_file:=/home/ubuntu/dev_ws
 ## Localization with saved map
 ### Start SLAM localization with saved map
 ros2 laucnh pharma_bot dev_test_launch_localization.py
-ros2 launch slam_toolbox localization_launch.py slam_params_file:=/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_online_async.yaml
+ros2 launch slam_toolbox localization_launch.py slam_params_file:=/home/ubuntu/dev_ws/src/pharma_bot/config/mapper_params_localization.yaml
 
 ### Start Nav2 navigation stack
 source install/setup.bash

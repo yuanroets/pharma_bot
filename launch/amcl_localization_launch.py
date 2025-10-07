@@ -42,7 +42,7 @@ def generate_launch_description():
     # Launch Arguments
     declare_map_yaml_cmd = DeclareLaunchArgument(
         'map',
-        default_value='',
+        default_value='/home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_mooi_save.yaml',
         description='Full path to map yaml file to load')
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(

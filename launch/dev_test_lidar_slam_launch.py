@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
 """
-Dev Machine Test Launch File - TELEOP + AMCL LOCALIZATION + NAV2
-==============================================================
+Dev Machine LiDAR-Heavy SLAM + Navigation Launch File
+=====================================================
 
-This launch file starts teleop + AMCL localization + Nav2 navigation on the dev machine:
+This launch file starts LiDAR-optimized SLAM + Nav2 navigation on the dev machine:
 - Teleop keyboard control  
 - Robot state publisher (URDF)
+- SLAM Toolbox MAPPING mode (LiDAR-heavy, dynamic obstacle oriented)
+- Nav2 navigation stack with optimized costmaps
 - Static transforms (coordinate frame linking)
-- RViz2 with robot model, LiDAR data, and localization visualization
-- AMCL localization (no SLAM)
-- Nav2 navigation stack
+- RViz2 with robot model, LiDAR data, and navigation visualization
+
+Key optimizations:
+- Very frequent SLAM updates for dynamic obstacles
+- High LiDAR reliance vs odometry
+- Faster costmap updates for reactive obstacle avoidance
+- Conservative navigation for safety around new obstacles
 
 Usage on dev machine:
-    ros2 launch pharma_bot dev_test_amcl_launch.py
+    ros2 launch pharma_bot dev_test_lidar_slam_launch.py
 
 Make sure to set ROS_DOMAIN_ID=30 to match the Pi.
-Note: Requires saved map files for localization mode.
 """
 
 import os
@@ -23,9 +28,9 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, Command
-from launch_ros.actions import Node
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_ros.actions import Node, LifecycleNode
 from launch_ros.parameter_descriptions import ParameterValue
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
@@ -37,6 +42,9 @@ def generate_launch_description():
     
     # RViz Configuration
     rviz_config_file = os.path.join(pkg_pharma_bot, 'config', 'pharma_bot.rviz')
+    
+    # SLAM Configuration (optimized for LiDAR)
+    slam_params_file = os.path.join(pkg_pharma_bot, 'config', 'mapper_params_online_async.yaml')
     
     # Launch Configuration Variables
     use_sim_time = LaunchConfiguration('use_sim_time')
@@ -83,7 +91,7 @@ def generate_launch_description():
         arguments=['0', '-0.0865', '0.0', '0', '0', '-1.5708', 'base_link', 'right_wheel']
     )
     
-    # Simple Odometry Node
+    # Simple Odometry Node (with optimized parameters)
     simple_odometry = Node(
         package='serial_motor_demo',
         executable='simple_odometry',
@@ -94,6 +102,18 @@ def generate_launch_description():
             'wheel_separation': 0.170,
             'wheel_radius': 0.02569,    # 25.69mm radius (calibrated from 1m test)
         }]
+    )
+
+    # SLAM Toolbox - Async mapping mode with LiDAR-heavy configuration
+    async_slam_toolbox_node = Node(
+        package='slam_toolbox',
+        executable='async_slam_toolbox_node',
+        name='slam_toolbox',
+        output='screen',
+        parameters=[slam_params_file, {
+            'use_sim_time': use_sim_time
+        }],
+        remappings=[('/scan', '/scan')]
     )
 
     # Teleop Keyboard Control - For driving the robot
@@ -127,7 +147,7 @@ def generate_launch_description():
         actions=[teleop_keyboard]
     )
 
-    # Relay node for cmd_vel_smoothed to cmd_vel
+    # Relay node for cmd_vel_smoothed to cmd_vel (if using velocity smoother)
     relay_cmd_vel = Node(
         package='topic_tools',
         executable='relay',
@@ -145,20 +165,12 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Include AMCL localization launch (no SLAM)
-    amcl_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(pkg_pharma_bot, 'launch', 'localization_launch.py')),
-        launch_arguments={
-            'use_sim_time': 'false',
-            'map': '/home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_mooi_save.yaml'
-        }.items()
-    )
-
-    # Include Nav2 navigation launch
+    # Include Nav2 navigation launch (with optimized costmaps)
     nav2_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(pkg_pharma_bot, 'launch', 'navigation_launch.py')),
         launch_arguments={
             'use_sim_time': 'false',
+            'autostart': 'true',
             'map_subscribe_transient_local': 'true'
         }.items()
     )
@@ -170,15 +182,15 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time)
     ld.add_action(declare_encoder_cpr)
     
-    # Add core visualization components (start immediately)
+    # Add core components (start immediately)
     ld.add_action(robot_state_publisher)
     ld.add_action(simple_odometry)
     ld.add_action(static_tf_base_to_left_wheel)
     ld.add_action(static_tf_base_to_right_wheel)
+    ld.add_action(scan_relay_node)
+    ld.add_action(async_slam_toolbox_node)
     ld.add_action(rviz2)
     ld.add_action(relay_cmd_vel)
-    ld.add_action(scan_relay_node)
-    ld.add_action(amcl_launch)
     ld.add_action(nav2_launch)
     
     # Add delayed teleop

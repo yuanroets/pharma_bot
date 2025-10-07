@@ -15,60 +15,63 @@ slam_toolbox:
     base_frame: base_link             # Changed from base_footprint to match your robot frames
     scan_topic: /scan                 # Standard scan topic (remapped in launch file to /ldlidar_node/scan)
     # scan_topic: /ldlidar_node/scan  # LiDAR's actual topic (now handled by launch file remapping)
-    mode: mapping                     # Changed to mapping to create new map with optimized odometry
+    mode: mapping                          # Use mapping mode for SLAM + dynamic obstacles
+    map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_mooi_serial
+    map_start_pose: [0.0, 0.0, 0.0]       # Starting pose (x, y, theta)
+    map_start_at_dock: true              # Let SLAM determine initial pose from LiDAR
 
-    # Map saving configuration - Updated path for your system
-    # This determines where maps will be saved when you call save_map service
-    map_file_name: /home/ubuntu/dev_ws/src/pharma_bot/maps/Huis_Nuwe_Serial
-    map_start_pose: [0.0, 0.0, 0.0]  # Starting pose (x, y, theta)
-    map_start_at_dock: true         # Changed to false - let AMCL/localization handle initial pose
-                                    # Set to true for localization mode to start at known dock position
-
+    # Advanced SLAM Parameters for LiDAR-heavy operation
+    laser_min_range: 0.1                  # Ignore very close readings
+    laser_max_range: 8.0                  # Use full LiDAR range for mapping
+    minimum_scan_match_distance: 0.02     # Very frequent scan matching
+    minimum_scan_match_rotation: 0.05     # Match on small rotations
+    scan_match_type: "ceres"              # Use Ceres solver for better accuracy
+    
     debug_logging: false
-    throttle_scans: 1                     # Skip every other scan to reduce network load
-    transform_publish_period: 0.02 #if 0 never publishes odometry
-    map_update_interval: 2.0              # Faster map updates for network delays
+    throttle_scans: 1                     # Process every scan for maximum LiDAR data
+    transform_publish_period: 0.01        # Faster odometry correction (100Hz)
+    map_update_interval: 1.0               # Faster map updates for dynamic obstacles
     resolution: 0.05
     max_laser_range: 20.0 #for rastering images
-    minimum_time_interval: 0.2            # Reduced for network operation
-    transform_timeout: 0.5                # Increased timeout for network delays
+    minimum_time_interval: 0.1             # More frequent updates for dynamic environment
+    transform_timeout: 0.3                 # Reduced timeout = trust LiDAR timing more
     tf_buffer_duration: 30.
     stack_size_to_use: 40000000 #// program needs a larger stack size to serialize large maps
     enable_interactive_mode: true
 
-    # General Parameters - Tuned for real robot with encoder odometry
+    # General Parameters - Tuned for LIDAR-heavy operation with dynamic obstacles
     use_scan_matching: true
     use_scan_barycenter: true
-    minimum_travel_distance: 0.2      # Reduced from 0.5 - update map more frequently
-    minimum_travel_heading: 0.3       # Reduced from 0.5 - update on smaller rotations
-    scan_buffer_size: 10
-    scan_buffer_maximum_scan_distance: 10.0
-    link_match_minimum_response_fine: 0.1  
-    link_scan_maximum_distance: 1.5
-    loop_search_maximum_distance: 3.0
+    minimum_travel_distance: 0.05     # Much more frequent updates for dynamic obstacles
+    minimum_travel_heading: 0.1       # Update on very small rotations
+    scan_buffer_size: 20               # Larger buffer for better matching
+    scan_buffer_maximum_scan_distance: 12.0
+    link_match_minimum_response_fine: 0.05    # Lower threshold = more LiDAR reliance
+    link_scan_maximum_distance: 2.0   # Increased for better obstacle detection
+    loop_search_maximum_distance: 4.0 # Larger search for loop closure
     do_loop_closing: true 
-    loop_match_minimum_chain_size: 10           
-    loop_match_maximum_variance_coarse: 3.0  
-    loop_match_minimum_response_coarse: 0.35    
-    loop_match_minimum_response_fine: 0.45
+    loop_match_minimum_chain_size: 8  # Reduced for faster loop detection        
+    loop_match_maximum_variance_coarse: 2.5   # Tighter matching
+    loop_match_minimum_response_coarse: 0.25  # Lower = more LiDAR sensitivity
+    loop_match_minimum_response_fine: 0.35    # Lower = more LiDAR sensitivity
 
-    # Correlation Parameters - Correlation Parameters
-    correlation_search_space_dimension: 0.5
-    correlation_search_space_resolution: 0.01
-    correlation_search_space_smear_deviation: 0.1 
+    # Correlation Parameters - Optimized for LiDAR precision
+    correlation_search_space_dimension: 0.3   # Smaller search = trust LiDAR position more
+    correlation_search_space_resolution: 0.005 # Higher resolution for precise matching
+    correlation_search_space_smear_deviation: 0.05 # Reduced smearing
 
-    # Correlation Parameters - Loop Closure Parameters
-    loop_search_space_dimension: 8.0
-    loop_search_space_resolution: 0.05
-    loop_search_space_smear_deviation: 0.03
+    # Correlation Parameters - Loop Closure Parameters  
+    loop_search_space_dimension: 6.0          # Smaller loop search = trust current position
+    loop_search_space_resolution: 0.02        # Higher resolution for precise loop closure
+    loop_search_space_smear_deviation: 0.02   # Reduced smearing for sharper matching
 
-    # Scan Matcher Parameters
-    distance_variance_penalty: 0.5      
-    angle_variance_penalty: 1.0    
+    # Scan Matcher Parameters - Prioritize LiDAR over odometry
+    distance_variance_penalty: 0.2    # Reduced penalty = trust LiDAR distance more      
+    angle_variance_penalty: 0.3       # Reduced penalty = trust LiDAR angles more
 
     fine_search_angle_offset: 0.00349     
     coarse_search_angle_offset: 0.349   
-    coarse_angle_resolution: 0.0349        
-    minimum_angle_penalty: 0.9
-    minimum_distance_penalty: 0.5
+    coarse_angle_resolution: 0.0175       # Higher resolution for better matching        
+    minimum_angle_penalty: 0.7            # Reduced = more LiDAR reliance
+    minimum_distance_penalty: 0.3         # Reduced = more LiDAR reliance
     use_response_expansion: true
